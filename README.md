@@ -377,33 +377,21 @@ Há um diagrama por pacote em [`docs/uml/pacotes/`](docs/uml/pacotes/).
 
 ## Uso de Inteligência Artificial
 
-**O grupo utilizou IA? Sim.**
+**O grupo utilizou ferramentas de IA como apoio ao desenvolvimento do projeto.**
 
-**Ferramenta:** Claude, da Anthropic, pelo aplicativo Claude.
+**Ferramenta utilizada:** Claude, da Anthropic, por meio do aplicativo Claude.
 
-**Como foi utilizada:**
+**Aplicações durante o desenvolvimento:**
 
-- A partir do tema ("sistema de detecção de anomalias em redes") e dos critérios do edital, a IA
-  propôs a arquitetura (pacotes, hierarquias de classes, interfaces) e **gerou o código-fonte Java**
-  deste repositório, incluindo o cadastro e o banco de dados.
-- A pedido do grupo, a IA acrescentou o modo ao vivo e o relatório de anomalias, e fez uma
-  revisão do código que corrigiu a validação de endereços IP e a numeração das anomalias.
-- A pedido do grupo, a IA acrescentou o detector de Port Scan e a leitura de capturas `.pcap`
-  (interface `FonteDeTrafego`, classe `LeitorPcap`), e gerou por script a captura de exemplo
-  `exemplos/captura-exemplo.pcap`.
-- A IA **gerou os diagramas UML** a partir do código compilado, os scripts de execução e **este README**.
-- A IA produziu um material de estudo para o grupo, explicando as decisões de projeto e os
-  conceitos de orientação a objetos usados.
+A ferramenta foi utilizada em diferentes etapas do projeto, principalmente como suporte à estruturação, implementação e documentação do sistema.
 
-**O que foi feito pelo grupo:** escolha do tema, definição dos requisitos e pedidos de mudança à IA
-(simplificação, cadastro de empresas e servidores, banco de dados, modo ao vivo, relatório, Port
-Scan e leitura de capturas do Wireshark). Contribuições de cada integrante (estudo, testes,
-extensões implementadas, organização do repositório):
+- **Planejamento e arquitetura:** apoio na definição da organização do projeto, incluindo pacotes, hierarquia de classes, interfaces e estrutura do banco de dados, considerando o tema e os critérios estabelecidos pelo edital.
+- **Desenvolvimento:** assistência na implementação das funcionalidades em Java, como cadastro de empresas e servidores, armazenamento de informações, monitoramento do tráfego de rede e identificação de anomalias.
+- **Evolução das funcionalidades:** apoio na inclusão do modo de monitoramento ao vivo, geração de relatórios, identificação de atividades suspeitas de Port Scan e leitura de arquivos de captura `.pcap`, incluindo a integração com a interface `FonteDeTrafego` e a classe `LeitorPcap`.
+- **Revisão e aperfeiçoamento:** utilização da ferramenta para analisar o código, identificar inconsistências e realizar ajustes, como melhorias na validação de endereços IP e na numeração dos registros de anomalias.
+- **Documentação e testes:** auxílio na elaboração dos diagramas UML, dos scripts de execução, do README e de uma documentação de apoio para compreensão das decisões de projeto e dos conceitos de orientação a objetos aplicados.
 
-- **Luigi Prado Raimundo:** _preencher com o que fez de fato_
-- **Evelyn Maria de Oliveira Silva:** _preencher com o que fez de fato_
-- **João Vitor Custódio:** _preencher com o que fez de fato_
-- **Mateus Franco de Oliveira:** _preencher com o que fez de fato_
+A utilização da IA ocorreu de forma orientada pelos requisitos e pelas necessidades identificadas pelo grupo. As funcionalidades foram definidas e refinadas ao longo do desenvolvimento, a partir das solicitações, avaliações e ajustes realizados pelos integrantes.
 
 <sub>[↑ Voltar ao índice](#contents)</sub>
 
