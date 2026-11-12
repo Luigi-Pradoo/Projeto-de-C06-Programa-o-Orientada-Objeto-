@@ -1,0 +1,21 @@
+# Arquivos compilados
+target/
+out/
+bin/
+*.class
+
+# Resultados gerados a cada execução
+saida/
+dados/sentinela.db
+
+# Arquivos das IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

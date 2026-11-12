@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>br.inatel</groupId>
+    <artifactId>sentinela</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Sentinela</name>
+    <description>Sistema de detecção de anomalias em redes - Projeto final de C06 (POO)</description>
+
+    <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Driver JDBC do SQLite: o banco de dados fica em um único arquivo (dados/sentinela.db). -->
+        <!-- O mesmo .jar está na pasta lib, para quem compila sem Maven. -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.47.1.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>br.inatel.sentinela.Principal</mainClass>
+                        </manifest>
+                        <manifestEntries>
+                            <!-- Permite "java -jar target/sentinela-1.0.0.jar" achar o driver na pasta lib. -->
+                            <Class-Path>../lib/sqlite-jdbc-3.47.1.0.jar</Class-Path>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
