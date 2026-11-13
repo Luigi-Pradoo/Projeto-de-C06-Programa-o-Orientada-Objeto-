@@ -5,8 +5,8 @@ import br.inatel.sentinela.modelo.PacoteRede;
 import br.inatel.sentinela.modelo.PacoteTcp;
 import br.inatel.sentinela.modelo.Severidade;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Detecta tráfego para portas conhecidas por uso inseguro ou malicioso.
@@ -14,15 +14,15 @@ import java.util.Optional;
  */
 public class DetectorPortaSuspeita extends Detector {
 
-    /** Tabela porta -> motivo da suspeita. Map.of cria um mapa que não pode ser alterado. */
-    private static final Map<Integer, String> PORTAS_SUSPEITAS = Map.of(
-            23, "Telnet (acesso remoto sem criptografia)",
-            4444, "porta padrão de shell remoto do Metasploit",
-            6667, "IRC (canal comum de comando de botnets)",
-            31337, "porta clássica de backdoor (Back Orifice)");
+    /** Tabela porta -> motivo da suspeita (um HashMap, chave -> valor, como na Aula 12). */
+    private final Map<Integer, String> portasSuspeitas = new HashMap<>();
 
     public DetectorPortaSuspeita() {
         super("Porta suspeita", Severidade.ALTA);
+        portasSuspeitas.put(23, "Telnet (acesso remoto sem criptografia)");
+        portasSuspeitas.put(4444, "porta padrão de shell remoto do Metasploit");
+        portasSuspeitas.put(6667, "IRC (canal comum de comando de botnets)");
+        portasSuspeitas.put(31337, "porta clássica de backdoor (Back Orifice)");
     }
 
     @Override
@@ -31,14 +31,14 @@ public class DetectorPortaSuspeita extends Detector {
     }
 
     @Override
-    protected Optional<Anomalia> inspecionar(PacoteRede pacote) {
+    protected Anomalia inspecionar(PacoteRede pacote) {
         PacoteTcp tcp = (PacoteTcp) pacote;
-        String motivo = PORTAS_SUSPEITAS.get(tcp.getPortaDestino());
+        String motivo = portasSuspeitas.get(tcp.getPortaDestino());
         String chave = tcp.getIpOrigem() + "->" + tcp.getIpDestino() + ":" + tcp.getPortaDestino();
         if (motivo == null || !primeiraVez(chave)) {
-            return Optional.empty();
+            return null;
         }
         String descricao = "tráfego para " + tcp.getIpDestino() + ":" + tcp.getPortaDestino() + ", " + motivo;
-        return Optional.of(novaAnomalia(tcp, descricao));
+        return novaAnomalia(tcp, descricao);
     }
 }

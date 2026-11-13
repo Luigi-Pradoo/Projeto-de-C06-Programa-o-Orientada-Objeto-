@@ -7,7 +7,6 @@ import br.inatel.sentinela.modelo.PacoteRede;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Coordena uma análise: passa cada pacote por todos os detectores e entrega
@@ -57,9 +56,9 @@ public class MotorDeteccao {
             for (Detector detector : detectores) {
                 // POLIMORFISMO: a mesma chamada executa a regra de cada detector,
                 // conforme o tipo real do objeto que está na lista.
-                Optional<Anomalia> resultado = detector.analisar(pacote);
-                if (resultado.isPresent()) {
-                    doPacote.add(resultado.get());
+                Anomalia resultado = detector.analisar(pacote);
+                if (resultado != null) {
+                    doPacote.add(resultado);
                 }
             }
             // ...depois o monitor mostra o pacote e, logo abaixo dele, saem os alertas.

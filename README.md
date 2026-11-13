@@ -249,9 +249,9 @@ O código tem **24 tipos em 5 pacotes**, cada pacote com uma responsabilidade:
 | **Associação 1:N** | Uma `Empresa` tem uma `List<Servidor>` |
 | **Herança** | `PacoteRede` → `PacoteTcp`, `PacoteIcmp` · `Detector` → 4 detectores · `SentinelaException` → 2 exceções |
 | **Classes abstratas** | `PacoteRede` (não existe pacote "genérico") e `Detector` (Template Method: `analisar()` é `final` e chama o abstrato `inspecionar()`) |
-| **Interfaces** | `Notificador` e `FonteDeTrafego` (nossas); `Comparable` e `AutoCloseable` (do Java) |
+| **Interfaces** | `Notificador` e `FonteDeTrafego` (nossas); `Comparable` (do Java), para ordenar as anomalias |
 | **Polimorfismo** | `detector.analisar(pacote)`, `notificador.notificar(anomalia)`, `fonte.obterPacotes()` e `pacote.descrever()`: a mesma chamada executa código diferente conforme o objeto |
-| **Tratamento de exceções** | Hierarquia de exceções checadas, tradução de `SQLException`/`IOException`, `try-with-resources` |
+| **Tratamento de exceções** | Hierarquia de exceções checadas, tradução de `SQLException`/`IOException`, `try/catch/finally` (a conexão com o banco é fechada no `finally`) |
 
 O melhor exemplo de por que a arquitetura funciona: o detector de **Port Scan** e a leitura de
 **arquivos `.pcap`** entraram no projeto sem mudar uma linha do motor. Bastou uma classe que
@@ -312,6 +312,12 @@ erDiagram
 Para ver o conteúdo fora do programa, abra `dados/sentinela.db` no
 [DB Browser for SQLite](https://sqlitebrowser.org/).
 
+> [!NOTE]
+> **Por que SQLite e não MySQL?** O SQLite guarda o banco inteiro em um arquivo e não precisa de
+> servidor instalado, então o projeto roda em qualquer computador só com o Java. O SQL usado é o
+> mesmo do MySQL (`CREATE TABLE`, `INSERT`, `JOIN`, `GROUP BY`). Como todo o SQL está na classe
+> `BancoDeDados`, trocar para MySQL mexeria só nessa classe e no driver.
+
 <sub>[↑ Voltar ao índice](#contents)</sub>
 
 ## Diagrama UML
@@ -354,7 +360,7 @@ Há um diagrama por pacote em [`docs/uml/pacotes/`](docs/uml/pacotes/).
 | 03 | Herança | `PacoteRede` → `PacoteTcp`/`PacoteIcmp`; `Detector` → 4 detectores; `SentinelaException` → 2 exceções |
 | 04 | Polimorfismo | Listas de `Detector` e `Notificador` no `MotorDeteccao`; `FonteDeTrafego` no menu; `descrever()` nos pacotes |
 | 05 | Interfaces **e** classes abstratas | Interfaces `Notificador` e `FonteDeTrafego`; classes abstratas `PacoteRede` e `Detector` |
-| 06 | Tratamento de erros | 3 exceções próprias, validação nos construtores, `try/catch` no menu, `try-with-resources` |
+| 06 | Tratamento de erros | 3 exceções próprias, validação nos construtores, `try/catch` no menu, `finally` para fechar o banco |
 | 07 | Arquivos **ou** banco de dados | Os dois: SQLite via JDBC em `BancoDeDados` e leitura de arquivos `.pcap` em `LeitorPcap` |
 | 08 | Threads | **Não utilizadas, por orientação do professor.** A análise é sequencial, um pacote de cada vez |
 | 09 | UML completo | [`docs/uml/`](docs/uml/) |

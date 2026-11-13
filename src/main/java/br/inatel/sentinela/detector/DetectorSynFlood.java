@@ -5,11 +5,10 @@ import br.inatel.sentinela.modelo.PacoteRede;
 import br.inatel.sentinela.modelo.PacoteTcp;
 import br.inatel.sentinela.modelo.Severidade;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Detecta SYN Flood: um mesmo IP pedindo conexões TCP (SYN) em ritmo muito
@@ -23,7 +22,7 @@ public class DetectorSynFlood extends Detector {
 
     private final long janelaMs;
     private final int limite;
-    private final Map<String, Deque<Long>> synPorOrigem = new HashMap<>();
+    private final Map<String, List<Long>> synPorOrigem = new HashMap<>();
 
     /**
      * @param janelaMs tamanho da janela de tempo, em milissegundos
@@ -44,27 +43,28 @@ public class DetectorSynFlood extends Detector {
     }
 
     @Override
-    protected Optional<Anomalia> inspecionar(PacoteRede pacote) {
+    protected Anomalia inspecionar(PacoteRede pacote) {
         PacoteTcp tcp = (PacoteTcp) pacote;
         if (!tcp.isSyn()) {
-            return Optional.empty();
+            return null;
         }
         String origem = tcp.getIpOrigem();
-        Deque<Long> instantes = synPorOrigem.get(origem);
+        List<Long> instantes = synPorOrigem.get(origem);
         if (instantes == null) {
-            instantes = new ArrayDeque<>();
+            instantes = new ArrayList<>();
             synPorOrigem.put(origem, instantes);
         }
-        instantes.addLast(tcp.getInstanteMs());
-        // Descarta do começo da fila os SYN mais velhos que a janela.
-        while (tcp.getInstanteMs() - instantes.peekFirst() > janelaMs) {
-            instantes.removeFirst();
+        instantes.add(tcp.getInstanteMs());
+        // Os instantes ficam em ordem de chegada: o mais velho está na posição 0.
+        // Remove do começo da lista os SYN mais velhos que a janela.
+        while (tcp.getInstanteMs() - instantes.get(0) > janelaMs) {
+            instantes.remove(0);
         }
         if (instantes.size() > limite && primeiraVez(origem)) {
             String descricao = instantes.size() + " pedidos de conexão em " + janelaMs + " ms contra "
                     + tcp.getIpDestino() + ":" + tcp.getPortaDestino() + " (limite: " + limite + ")";
-            return Optional.of(novaAnomalia(tcp, descricao));
+            return novaAnomalia(tcp, descricao);
         }
-        return Optional.empty();
+        return null;
     }
 }

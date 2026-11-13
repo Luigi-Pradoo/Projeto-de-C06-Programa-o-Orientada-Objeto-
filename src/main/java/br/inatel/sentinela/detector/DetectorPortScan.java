@@ -6,8 +6,8 @@ import br.inatel.sentinela.modelo.PacoteTcp;
 import br.inatel.sentinela.modelo.Severidade;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Detecta Port Scan (varredura de portas): um mesmo IP tentando abrir conexão
@@ -46,11 +46,11 @@ public class DetectorPortScan extends Detector {
     }
 
     @Override
-    protected Optional<Anomalia> inspecionar(PacoteRede pacote) {
+    protected Anomalia inspecionar(PacoteRede pacote) {
         PacoteTcp tcp = (PacoteTcp) pacote;
         // Só pedidos de conexão contam: é assim que a varredura "bate" em cada porta.
         if (!tcp.isSyn()) {
-            return Optional.empty();
+            return null;
         }
         String par = tcp.getIpOrigem() + " -> " + tcp.getIpDestino();
         Map<Integer, Long> portas = portasPorPar.get(par);
@@ -60,15 +60,22 @@ public class DetectorPortScan extends Detector {
         }
         portas.put(tcp.getPortaDestino(), tcp.getInstanteMs());
 
-        // Esquece as portas testadas há mais tempo que a janela.
+        // Esquece as portas testadas há mais tempo que a janela. Para remover
+        // durante o percurso sem erro, a remoção é feita pelo Iterator (Aula 12).
         long agora = tcp.getInstanteMs();
-        portas.values().removeIf(instante -> agora - instante > janelaMs);
+        Iterator<Long> iterador = portas.values().iterator();
+        while (iterador.hasNext()) {
+            long instante = iterador.next();
+            if (agora - instante > janelaMs) {
+                iterador.remove();
+            }
+        }
 
         if (portas.size() > limitePortas && primeiraVez(par)) {
             String descricao = portas.size() + " portas diferentes testadas em " + tcp.getIpDestino()
                     + " em até " + janelaMs + " ms (limite: " + limitePortas + ")";
-            return Optional.of(novaAnomalia(tcp, descricao));
+            return novaAnomalia(tcp, descricao);
         }
-        return Optional.empty();
+        return null;
     }
 }

@@ -4,7 +4,6 @@ import br.inatel.sentinela.modelo.Anomalia;
 import br.inatel.sentinela.modelo.PacoteRede;
 import br.inatel.sentinela.modelo.Severidade;
 
-import java.util.Optional;
 
 /**
  * Detecta pacotes maiores que o tamanho máximo normal da rede (1500 bytes em
@@ -26,13 +25,13 @@ public class DetectorTamanhoAnormal extends Detector {
     }
 
     @Override
-    protected Optional<Anomalia> inspecionar(PacoteRede pacote) {
+    protected Anomalia inspecionar(PacoteRede pacote) {
         if (pacote.getTamanhoBytes() <= limiteBytes || !primeiraVez(pacote.getIpOrigem())) {
-            return Optional.empty();
+            return null;
         }
         // descrever() é polimórfico: o texto depende do tipo real do pacote (TCP ou ICMP).
         String descricao = "pacote " + pacote.getProtocolo() + " acima de " + limiteBytes + " bytes: "
                 + pacote.descrever();
-        return Optional.of(novaAnomalia(pacote, descricao));
+        return novaAnomalia(pacote, descricao);
     }
 }

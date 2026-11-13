@@ -48,14 +48,20 @@ public class Principal {
     }
 
     public static void main(String[] args) {
-        // try-with-resources: a conexão com o banco é fechada sozinha quando o programa sai do bloco.
-        try (BancoDeDados banco = new BancoDeDados(ARQUIVO_DO_BANCO)) {
+        BancoDeDados banco = null;
+        try {
+            banco = new BancoDeDados(ARQUIVO_DO_BANCO);
             Principal aplicacao = new Principal(banco);
             aplicacao.cadastrarExemploSeVazio();
             Anomalia.continuarNumeracaoApos(banco.maiorNumeroDeAnomalia());
             aplicacao.executarMenu();
         } catch (SentinelaException e) {
             System.out.println("[ERRO] " + e.getMessage());
+        } finally {
+            // O finally sempre executa: a conexão com o banco é fechada mesmo se der erro.
+            if (banco != null) {
+                banco.fechar();
+            }
         }
     }
 

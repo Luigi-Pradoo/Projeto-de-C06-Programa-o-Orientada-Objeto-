@@ -5,7 +5,6 @@ import br.inatel.sentinela.modelo.PacoteRede;
 import br.inatel.sentinela.modelo.Severidade;
 
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -33,15 +32,15 @@ public abstract class Detector {
      * Receita fixa da análise: filtra, conta, inspeciona e conta de novo.
      * É final para que nenhuma subclasse possa mudar essa sequência.
      *
-     * @return um Optional com a anomalia encontrada, ou vazio se o pacote está normal
+     * @return a anomalia encontrada, ou null se o pacote está normal
      */
-    public final Optional<Anomalia> analisar(PacoteRede pacote) {
+    public final Anomalia analisar(PacoteRede pacote) {
         if (!aceita(pacote)) {
-            return Optional.empty();
+            return null;
         }
         pacotesInspecionados++;
-        Optional<Anomalia> resultado = inspecionar(pacote);
-        if (resultado.isPresent()) {
+        Anomalia resultado = inspecionar(pacote);
+        if (resultado != null) {
             anomaliasGeradas++;
         }
         return resultado;
@@ -55,8 +54,12 @@ public abstract class Detector {
         return true;
     }
 
-    /** A regra de detecção propriamente dita. Cada subclasse implementa a sua. */
-    protected abstract Optional<Anomalia> inspecionar(PacoteRede pacote);
+    /**
+     * A regra de detecção propriamente dita. Cada subclasse implementa a sua.
+     *
+     * @return a anomalia encontrada, ou null se o pacote não tem nada de suspeito
+     */
+    protected abstract Anomalia inspecionar(PacoteRede pacote);
 
     /** Cria uma anomalia já com o nome e a severidade deste detector. */
     protected Anomalia novaAnomalia(PacoteRede pacote, String descricao) {

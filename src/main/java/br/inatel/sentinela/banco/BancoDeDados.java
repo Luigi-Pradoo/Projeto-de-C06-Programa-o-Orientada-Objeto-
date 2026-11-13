@@ -33,13 +33,16 @@ import java.util.Map;
  *   empresas  1 --- N  servidores
  *   empresas  1 --- N  analises  1 --- N  anomalias
  *
- * Implementa DUAS interfaces:
- *  - Notificador: para o motor de detecção, o banco é só mais um destino de
- *    alertas, igual à tela. Cada anomalia notificada vira uma linha no banco.
- *  - AutoCloseable: segura uma conexão aberta, que precisa ser fechada no
- *    final; por isso pode ser usado em um try-with-resources.
+ * Implementa a interface Notificador: para o motor de detecção, o banco é só
+ * mais um destino de alertas, igual à tela. Cada anomalia notificada vira uma
+ * linha no banco.
+ *
+ * Recursos do banco (conexão e comandos) precisam ser fechados depois de
+ * usados. Isso é feito no bloco finally, que sempre executa, com erro ou sem
+ * erro (Aula 13). Fechar um comando (Statement) fecha junto o resultado
+ * (ResultSet) que ele gerou.
  */
-public class BancoDeDados implements Notificador, AutoCloseable {
+public class BancoDeDados implements Notificador {
 
     private static final String[] CRIAR_TABELAS = {
         "CREATE TABLE IF NOT EXISTS empresas ("
@@ -94,13 +97,15 @@ public class BancoDeDados implements Notificador, AutoCloseable {
                 Files.createDirectories(arquivo.getParent());
             }
             conexao = DriverManager.getConnection("jdbc:sqlite:" + arquivo);
-            // try-with-resources: o Statement é fechado sozinho no fim do bloco.
-            try (Statement comando = conexao.createStatement()) {
+            Statement comando = conexao.createStatement();
+            try {
                 // O SQLite só respeita as chaves estrangeiras (e o CASCADE) com esta opção ligada.
                 comando.execute("PRAGMA foreign_keys = ON");
                 for (String sql : CRIAR_TABELAS) {
                     comando.execute(sql);
                 }
+            } finally {
+                comando.close(); // o finally sempre executa: o comando é fechado mesmo se der erro
             }
         } catch (ClassNotFoundException e) {
             throw new BancoDeDadosException("Driver do SQLite não encontrado: rode o programa com "
@@ -117,13 +122,18 @@ public class BancoDeDados implements Notificador, AutoCloseable {
         String sql = "INSERT INTO empresas (nome, cnpj, responsavel, email) VALUES (?, ?, ?, ?)";
         // PreparedStatement com "?": os valores vão separados do SQL, então um texto
         // com aspas não quebra o comando e não há risco de SQL Injection.
-        try (PreparedStatement comando = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            comando.setString(1, empresa.getNome());
-            comando.setString(2, empresa.getCnpj());
-            comando.setString(3, empresa.getResponsavel());
-            comando.setString(4, empresa.getEmail());
-            comando.executeUpdate();
-            return idGerado(comando);
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            try {
+                comando.setString(1, empresa.getNome());
+                comando.setString(2, empresa.getCnpj());
+                comando.setString(3, empresa.getResponsavel());
+                comando.setString(4, empresa.getEmail());
+                comando.executeUpdate();
+                return idGerado(comando);
+            } finally {
+                comando.close();
+            }
         } catch (SQLException e) {
             if (e.getMessage().contains("UNIQUE")) {
                 throw new BancoDeDadosException("já existe uma empresa com o CNPJ " + empresa.getCnpjFormatado(), e);
@@ -135,12 +145,17 @@ public class BancoDeDados implements Notificador, AutoCloseable {
     /** Grava um servidor novo e devolve o id que o banco deu a ele. */
     public int cadastrarServidor(Servidor servidor) throws BancoDeDadosException {
         String sql = "INSERT INTO servidores (empresa_id, nome, ip) VALUES (?, ?, ?)";
-        try (PreparedStatement comando = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            comando.setInt(1, servidor.getEmpresaId());
-            comando.setString(2, servidor.getNome());
-            comando.setString(3, servidor.getIp());
-            comando.executeUpdate();
-            return idGerado(comando);
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            try {
+                comando.setInt(1, servidor.getEmpresaId());
+                comando.setString(2, servidor.getNome());
+                comando.setString(3, servidor.getIp());
+                comando.executeUpdate();
+                return idGerado(comando);
+            } finally {
+                comando.close();
+            }
         } catch (SQLException e) {
             if (e.getMessage().contains("UNIQUE")) {
                 throw new BancoDeDadosException("essa empresa já tem um servidor com o IP " + servidor.getIp(), e);
@@ -158,20 +173,23 @@ public class BancoDeDados implements Notificador, AutoCloseable {
      */
     public List<Empresa> listarEmpresas() throws BancoDeDadosException {
         Map<Integer, Empresa> porId = new LinkedHashMap<>();
-        try (Statement comando = conexao.createStatement()) {
-            try (ResultSet linhas = comando.executeQuery("SELECT * FROM empresas ORDER BY nome")) {
+        try {
+            Statement comando = conexao.createStatement();
+            try {
+                ResultSet linhas = comando.executeQuery("SELECT * FROM empresas ORDER BY nome");
                 while (linhas.next()) {
                     Empresa empresa = new Empresa(linhas.getInt("id"), linhas.getString("nome"),
                             linhas.getString("cnpj"), linhas.getString("responsavel"), linhas.getString("email"));
                     porId.put(empresa.getId(), empresa);
                 }
-            }
-            try (ResultSet linhas = comando.executeQuery("SELECT * FROM servidores ORDER BY id")) {
+                linhas = comando.executeQuery("SELECT * FROM servidores ORDER BY id");
                 while (linhas.next()) {
                     Servidor servidor = new Servidor(linhas.getInt("id"), linhas.getInt("empresa_id"),
                             linhas.getString("nome"), linhas.getString("ip"));
                     porId.get(servidor.getEmpresaId()).adicionarServidor(servidor);
                 }
+            } finally {
+                comando.close();
             }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível consultar as empresas", e);
@@ -197,9 +215,14 @@ public class BancoDeDados implements Notificador, AutoCloseable {
     }
 
     private boolean excluir(String sql, int id) throws BancoDeDadosException {
-        try (PreparedStatement comando = conexao.prepareStatement(sql)) {
-            comando.setInt(1, id);
-            return comando.executeUpdate() > 0;
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql);
+            try {
+                comando.setInt(1, id);
+                return comando.executeUpdate() > 0;
+            } finally {
+                comando.close();
+            }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível excluir o registro " + id, e);
         }
@@ -210,11 +233,16 @@ public class BancoDeDados implements Notificador, AutoCloseable {
     /** Registra o início de uma análise da empresa e guarda quais servidores ela tem. */
     public void iniciarAnalise(Empresa empresa) throws BancoDeDadosException {
         String sql = "INSERT INTO analises (empresa_id, data_hora) VALUES (?, ?)";
-        try (PreparedStatement comando = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            comando.setInt(1, empresa.getId());
-            comando.setString(2, LocalDateTime.now().format(FORMATO_DATA));
-            comando.executeUpdate();
-            analiseAtual = idGerado(comando);
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            try {
+                comando.setInt(1, empresa.getId());
+                comando.setString(2, LocalDateTime.now().format(FORMATO_DATA));
+                comando.executeUpdate();
+                analiseAtual = idGerado(comando);
+            } finally {
+                comando.close();
+            }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível registrar a análise", e);
         }
@@ -236,18 +264,23 @@ public class BancoDeDados implements Notificador, AutoCloseable {
         }
         String sql = "INSERT INTO anomalias (analise_id, servidor_id, numero, instante_ms, tipo, severidade,"
                 + " ip_suspeito, ip_alvo, descricao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement comando = conexao.prepareStatement(sql)) {
-            comando.setInt(1, analiseAtual);
-            // Liga a anomalia ao servidor atacado, procurando o IP alvo entre os servidores vigiados.
-            comando.setObject(2, servidoresVigiados.get(anomalia.getIpAlvo()));
-            comando.setInt(3, anomalia.getNumero());
-            comando.setLong(4, anomalia.getInstanteMs());
-            comando.setString(5, anomalia.getTipo());
-            comando.setString(6, anomalia.getSeveridade().name());
-            comando.setString(7, anomalia.getIpSuspeito());
-            comando.setString(8, anomalia.getIpAlvo());
-            comando.setString(9, anomalia.getDescricao());
-            comando.executeUpdate();
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql);
+            try {
+                comando.setInt(1, analiseAtual);
+                // Liga a anomalia ao servidor atacado, procurando o IP alvo entre os servidores vigiados.
+                comando.setObject(2, servidoresVigiados.get(anomalia.getIpAlvo()));
+                comando.setInt(3, anomalia.getNumero());
+                comando.setLong(4, anomalia.getInstanteMs());
+                comando.setString(5, anomalia.getTipo());
+                comando.setString(6, anomalia.getSeveridade().name());
+                comando.setString(7, anomalia.getIpSuspeito());
+                comando.setString(8, anomalia.getIpAlvo());
+                comando.setString(9, anomalia.getDescricao());
+                comando.executeUpdate();
+            } finally {
+                comando.close();
+            }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível gravar a anomalia #" + anomalia.getNumero(), e);
         }
@@ -256,11 +289,16 @@ public class BancoDeDados implements Notificador, AutoCloseable {
     /** Completa a linha da análise com os totais, depois que ela termina. */
     public void finalizarAnalise(int pacotes, int anomalias) throws BancoDeDadosException {
         String sql = "UPDATE analises SET pacotes = ?, anomalias = ? WHERE id = ?";
-        try (PreparedStatement comando = conexao.prepareStatement(sql)) {
-            comando.setInt(1, pacotes);
-            comando.setInt(2, anomalias);
-            comando.setInt(3, analiseAtual);
-            comando.executeUpdate();
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql);
+            try {
+                comando.setInt(1, pacotes);
+                comando.setInt(2, anomalias);
+                comando.setInt(3, analiseAtual);
+                comando.executeUpdate();
+            } finally {
+                comando.close();
+            }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível finalizar a análise", e);
         }
@@ -272,14 +310,18 @@ public class BancoDeDados implements Notificador, AutoCloseable {
                 + " FROM analises a JOIN empresas e ON a.empresa_id = e.id"
                 + " ORDER BY a.id DESC LIMIT ?";
         List<String> resultado = new ArrayList<>();
-        try (PreparedStatement comando = conexao.prepareStatement(sql)) {
-            comando.setInt(1, limite);
-            try (ResultSet linhas = comando.executeQuery()) {
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql);
+            try {
+                comando.setInt(1, limite);
+                ResultSet linhas = comando.executeQuery();
                 while (linhas.next()) {
                     resultado.add(String.format("Análise %d | %s | %s | %d pacotes | %d anomalias",
                             linhas.getInt(1), linhas.getString(2), linhas.getString(3),
                             linhas.getInt(4), linhas.getInt(5)));
                 }
+            } finally {
+                comando.close();
             }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível consultar as análises", e);
@@ -299,10 +341,15 @@ public class BancoDeDados implements Notificador, AutoCloseable {
 
     /** @return o maior número de anomalia já gravado (0 se ainda não há nenhuma) */
     public int maiorNumeroDeAnomalia() throws BancoDeDadosException {
-        try (Statement comando = conexao.createStatement();
-             ResultSet linhas = comando.executeQuery("SELECT COALESCE(MAX(numero), 0) FROM anomalias")) {
-            linhas.next();
-            return linhas.getInt(1);
+        try {
+            Statement comando = conexao.createStatement();
+            try {
+                ResultSet linhas = comando.executeQuery("SELECT COALESCE(MAX(numero), 0) FROM anomalias");
+                linhas.next();
+                return linhas.getInt(1);
+            } finally {
+                comando.close();
+            }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível consultar a numeração das anomalias", e);
         }
@@ -311,11 +358,15 @@ public class BancoDeDados implements Notificador, AutoCloseable {
     /** @return quantas análises a empresa já teve */
     public int contarAnalises(int empresaId) throws BancoDeDadosException {
         String sql = "SELECT COUNT(*) FROM analises WHERE empresa_id = ?";
-        try (PreparedStatement comando = conexao.prepareStatement(sql)) {
-            comando.setInt(1, empresaId);
-            try (ResultSet linhas = comando.executeQuery()) {
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql);
+            try {
+                comando.setInt(1, empresaId);
+                ResultSet linhas = comando.executeQuery();
                 linhas.next();
                 return linhas.getInt(1);
+            } finally {
+                comando.close();
             }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível contar as análises", e);
@@ -359,12 +410,16 @@ public class BancoDeDados implements Notificador, AutoCloseable {
      */
     private Map<String, Integer> contar(String sql, int empresaId) throws BancoDeDadosException {
         Map<String, Integer> contagem = new LinkedHashMap<>(); // LinkedHashMap mantém a ordem do ORDER BY
-        try (PreparedStatement comando = conexao.prepareStatement(sql)) {
-            comando.setInt(1, empresaId);
-            try (ResultSet linhas = comando.executeQuery()) {
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql);
+            try {
+                comando.setInt(1, empresaId);
+                ResultSet linhas = comando.executeQuery();
                 while (linhas.next()) {
                     contagem.put(linhas.getString(1), linhas.getInt(2));
                 }
+            } finally {
+                comando.close();
             }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível montar o relatório de anomalias", e);
@@ -379,16 +434,20 @@ public class BancoDeDados implements Notificador, AutoCloseable {
      */
     private List<Anomalia> listarAnomalias(String sql, Integer empresaId) throws BancoDeDadosException {
         List<Anomalia> anomalias = new ArrayList<>();
-        try (PreparedStatement comando = conexao.prepareStatement(sql)) {
-            if (empresaId != null) {
-                comando.setInt(1, empresaId);
-            }
-            try (ResultSet linhas = comando.executeQuery()) {
+        try {
+            PreparedStatement comando = conexao.prepareStatement(sql);
+            try {
+                if (empresaId != null) {
+                    comando.setInt(1, empresaId);
+                }
+                ResultSet linhas = comando.executeQuery();
                 while (linhas.next()) {
                     anomalias.add(new Anomalia(linhas.getInt("numero"), linhas.getString("tipo"),
                             Severidade.valueOf(linhas.getString("severidade")), linhas.getString("ip_suspeito"),
                             linhas.getString("ip_alvo"), linhas.getLong("instante_ms"), linhas.getString("descricao")));
                 }
+            } finally {
+                comando.close();
             }
         } catch (SQLException e) {
             throw new BancoDeDadosException("não foi possível consultar as anomalias", e);
@@ -396,22 +455,25 @@ public class BancoDeDados implements Notificador, AutoCloseable {
         return anomalias;
     }
 
-    // ============================ AUXILIARES ============================
-
-    /** Lê o id que o banco acabou de gerar no último INSERT. */
+    /**
+     * Lê o id que o banco acabou de gerar no último INSERT. O ResultSet é
+     * fechado junto com o comando, no finally de quem chamou este método.
+     */
     private int idGerado(PreparedStatement comando) throws SQLException {
-        try (ResultSet chaves = comando.getGeneratedKeys()) {
-            chaves.next();
-            return chaves.getInt(1);
-        }
+        ResultSet chaves = comando.getGeneratedKeys();
+        chaves.next();
+        return chaves.getInt(1);
     }
 
-    @Override
-    public void close() throws BancoDeDadosException {
+    /**
+     * Fecha a conexão com o banco. É chamado no finally do main, então roda
+     * sempre que o programa termina, com erro ou sem erro.
+     */
+    public void fechar() {
         try {
             conexao.close();
         } catch (SQLException e) {
-            throw new BancoDeDadosException("erro ao fechar o banco", e);
+            System.out.println("[AVISO] erro ao fechar o banco: " + e.getMessage());
         }
     }
 }
