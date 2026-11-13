@@ -327,6 +327,11 @@ O diagrama de classes completo, com todos os atributos, métodos e relacionament
 [PNG](docs/uml/diagrama-classes-completo.png) e [SVG](docs/uml/diagrama-classes-completo.svg)).
 Há um diagrama por pacote em [`docs/uml/pacotes/`](docs/uml/pacotes/).
 
+O diagrama completo é grande porque mostra as 24 classes com todos os atributos e métodos; ele foi
+feito para ver na tela com zoom. Para **imprimir ou projetar**, use
+[`docs/uml/uml-para-imprimir.pdf`](docs/uml/uml-para-imprimir.pdf): o mesmo diagrama dividido em
+8 folhas A4, um grupo de classes por folha, com a letra legível.
+
 Os diagramas seguem a notação usada nas aulas: classes abstratas em itálico, `<<interface>>` acima
 do nome, herança com linha cheia e triângulo vazado, implementação com linha tracejada, agregação
 (listas) com losango vazado e multiplicidade, e `+` `-` `#` para a visibilidade.
