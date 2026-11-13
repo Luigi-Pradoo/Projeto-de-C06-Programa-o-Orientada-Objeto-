@@ -1,4 +1,4 @@
-package br.inatel.sentinela.modelo;
+package br.inatel.netguard.modelo;
 
 /**
  * Nível de gravidade de uma anomalia.

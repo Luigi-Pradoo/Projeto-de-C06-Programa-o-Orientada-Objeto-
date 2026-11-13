@@ -1,12 +1,12 @@
-package br.inatel.sentinela.modelo;
+package br.inatel.netguard.modelo;
 
-import br.inatel.sentinela.excecao.CadastroInvalidoException;
+import br.inatel.netguard.excecao.CadastroInvalidoException;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Uma empresa cliente, cujos servidores o Sentinela vigia.
+ * Uma empresa cliente, cujos servidores o NetGuard vigia.
  *
  * Uma empresa TEM VÁRIOS servidores (associação de 1 para N). No objeto isso
  * é uma lista; no banco de dados é a coluna empresa_id da tabela servidores.

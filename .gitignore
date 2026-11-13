@@ -6,7 +6,7 @@ bin/
 
 # Resultados gerados a cada execução
 saida/
-dados/sentinela.db
+dados/netguard.db
 
 # Arquivos das IDEs
 .idea/

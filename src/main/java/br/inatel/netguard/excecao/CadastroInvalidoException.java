@@ -1,4 +1,4 @@
-package br.inatel.sentinela.excecao;
+package br.inatel.netguard.excecao;
 
 /**
  * Lançada quando o usuário digita um dado de cadastro inválido: nome vazio,
@@ -7,7 +7,7 @@ package br.inatel.sentinela.excecao;
  * É um erro esperado (gente digita errado), por isso é checada: o menu é
  * obrigado a tratar, avisando o usuário em vez de deixar o programa cair.
  */
-public class CadastroInvalidoException extends SentinelaException {
+public class CadastroInvalidoException extends NetGuardException {
 
     public CadastroInvalidoException(String mensagem) {
         super(mensagem);

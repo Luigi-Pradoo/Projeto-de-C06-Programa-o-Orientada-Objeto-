@@ -1,4 +1,4 @@
-package br.inatel.sentinela.modelo;
+package br.inatel.netguard.modelo;
 
 import java.time.Instant;
 import java.time.ZoneId;

@@ -1,12 +1,12 @@
-package br.inatel.sentinela.banco;
+package br.inatel.netguard.banco;
 
-import br.inatel.sentinela.analise.Notificador;
-import br.inatel.sentinela.excecao.BancoDeDadosException;
-import br.inatel.sentinela.excecao.CadastroInvalidoException;
-import br.inatel.sentinela.modelo.Anomalia;
-import br.inatel.sentinela.modelo.Empresa;
-import br.inatel.sentinela.modelo.Servidor;
-import br.inatel.sentinela.modelo.Severidade;
+import br.inatel.netguard.analise.Notificador;
+import br.inatel.netguard.excecao.BancoDeDadosException;
+import br.inatel.netguard.excecao.CadastroInvalidoException;
+import br.inatel.netguard.modelo.Anomalia;
+import br.inatel.netguard.modelo.Empresa;
+import br.inatel.netguard.modelo.Servidor;
+import br.inatel.netguard.modelo.Severidade;
 
 import java.io.IOException;
 import java.nio.file.Files;

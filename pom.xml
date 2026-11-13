@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>br.inatel</groupId>
-    <artifactId>sentinela</artifactId>
+    <artifactId>netguard</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Sentinela</name>
+    <name>NetGuard</name>
     <description>Sistema de detecção de anomalias em redes - Projeto final de C06 (POO)</description>
 
     <properties>
@@ -18,7 +18,7 @@
     </properties>
 
     <dependencies>
-        <!-- Driver JDBC do SQLite: o banco de dados fica em um único arquivo (dados/sentinela.db). -->
+        <!-- Driver JDBC do SQLite: o banco de dados fica em um único arquivo (dados/netguard.db). -->
         <!-- O mesmo .jar está na pasta lib, para quem compila sem Maven. -->
         <dependency>
             <groupId>org.xerial</groupId>
@@ -41,10 +41,10 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>br.inatel.sentinela.Principal</mainClass>
+                            <mainClass>br.inatel.netguard.Principal</mainClass>
                         </manifest>
                         <manifestEntries>
-                            <!-- Permite "java -jar target/sentinela-1.0.0.jar" achar o driver na pasta lib. -->
+                            <!-- Permite "java -jar target/netguard-1.0.0.jar" achar o driver na pasta lib. -->
                             <Class-Path>../lib/sqlite-jdbc-3.47.1.0.jar</Class-Path>
                         </manifestEntries>
                     </archive>

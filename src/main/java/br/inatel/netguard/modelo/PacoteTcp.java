@@ -1,4 +1,4 @@
-package br.inatel.sentinela.modelo;
+package br.inatel.netguard.modelo;
 
 /**
  * Pacote TCP: além do que todo pacote tem, guarda as portas de origem e de

@@ -1,8 +1,8 @@
-package br.inatel.sentinela.detector;
+package br.inatel.netguard.detector;
 
-import br.inatel.sentinela.modelo.Anomalia;
-import br.inatel.sentinela.modelo.PacoteRede;
-import br.inatel.sentinela.modelo.Severidade;
+import br.inatel.netguard.modelo.Anomalia;
+import br.inatel.netguard.modelo.PacoteRede;
+import br.inatel.netguard.modelo.Severidade;
 
 import java.util.HashSet;
 import java.util.Set;

@@ -1,6 +1,6 @@
-package br.inatel.sentinela.analise;
+package br.inatel.netguard.analise;
 
-import br.inatel.sentinela.modelo.Anomalia;
+import br.inatel.netguard.modelo.Anomalia;
 
 /**
  * Mostra cada alerta na tela, no momento em que a anomalia é detectada.

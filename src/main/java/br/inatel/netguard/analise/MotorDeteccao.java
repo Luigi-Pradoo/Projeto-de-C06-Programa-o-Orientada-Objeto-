@@ -1,9 +1,9 @@
-package br.inatel.sentinela.analise;
+package br.inatel.netguard.analise;
 
-import br.inatel.sentinela.detector.Detector;
-import br.inatel.sentinela.excecao.SentinelaException;
-import br.inatel.sentinela.modelo.Anomalia;
-import br.inatel.sentinela.modelo.PacoteRede;
+import br.inatel.netguard.detector.Detector;
+import br.inatel.netguard.excecao.NetGuardException;
+import br.inatel.netguard.modelo.Anomalia;
+import br.inatel.netguard.modelo.PacoteRede;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +22,7 @@ public class MotorDeteccao {
     private final List<Notificador> notificadores = new ArrayList<>();
     private final List<Anomalia> anomalias = new ArrayList<>();
     private MonitorAoVivo monitor; // opcional: null quando o modo ao vivo está desligado
+    private int falhasDeNotificacao; // quantas entregas de alerta deram erro (ex.: o banco não gravou)
 
     /**
      * @throws IllegalArgumentException se a lista de detectores estiver vazia
@@ -83,7 +84,10 @@ public class MotorDeteccao {
             try {
                 // POLIMORFISMO de novo: na tela imprime, no banco grava.
                 notificador.notificar(anomalia);
-            } catch (SentinelaException e) {
+            } catch (NetGuardException e) {
+                // O erro é mostrado e contado, mas a análise continua: os outros
+                // notificadores (como a tela) ainda recebem o alerta.
+                falhasDeNotificacao++;
                 System.out.println("[ERRO] " + e.getMessage());
             }
         }
@@ -92,5 +96,10 @@ public class MotorDeteccao {
     /** @return uma CÓPIA da lista de anomalias, para ninguém alterar a lista interna por fora */
     public List<Anomalia> getAnomalias() {
         return new ArrayList<>(anomalias);
+    }
+
+    /** @return quantas vezes um notificador falhou ao receber um alerta (0 = tudo entregue) */
+    public int getFalhasDeNotificacao() {
+        return falhasDeNotificacao;
     }
 }

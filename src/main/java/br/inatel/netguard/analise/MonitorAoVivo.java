@@ -1,6 +1,6 @@
-package br.inatel.sentinela.analise;
+package br.inatel.netguard.analise;
 
-import br.inatel.sentinela.modelo.PacoteRede;
+import br.inatel.netguard.modelo.PacoteRede;
 
 /**
  * Mostra o tráfego na tela enquanto a análise acontece.

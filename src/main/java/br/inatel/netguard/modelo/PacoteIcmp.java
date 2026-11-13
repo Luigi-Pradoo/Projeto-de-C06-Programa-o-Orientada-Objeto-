@@ -1,4 +1,4 @@
-package br.inatel.sentinela.modelo;
+package br.inatel.netguard.modelo;
 
 /**
  * Pacote ICMP, o protocolo de mensagens de controle (é o que o comando "ping" usa).

@@ -1,7 +1,7 @@
-package br.inatel.sentinela.analise;
+package br.inatel.netguard.analise;
 
-import br.inatel.sentinela.excecao.SentinelaException;
-import br.inatel.sentinela.modelo.PacoteRede;
+import br.inatel.netguard.excecao.NetGuardException;
+import br.inatel.netguard.modelo.PacoteRede;
 
 import java.util.List;
 
@@ -16,9 +16,9 @@ public interface FonteDeTrafego {
 
     /**
      * @return os pacotes, na ordem em que chegaram
-     * @throws SentinelaException se não for possível obter o tráfego (por exemplo, arquivo inválido)
+     * @throws NetGuardException se não for possível obter o tráfego (por exemplo, arquivo inválido)
      */
-    List<PacoteRede> obterPacotes() throws SentinelaException;
+    List<PacoteRede> obterPacotes() throws NetGuardException;
 
     /** @return uma frase curta dizendo de onde veio o tráfego, para mostrar na tela */
     String descrever();

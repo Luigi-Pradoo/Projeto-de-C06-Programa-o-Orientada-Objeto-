@@ -1,9 +1,9 @@
-package br.inatel.sentinela.analise;
+package br.inatel.netguard.analise;
 
-import br.inatel.sentinela.modelo.PacoteIcmp;
-import br.inatel.sentinela.modelo.PacoteRede;
-import br.inatel.sentinela.modelo.PacoteTcp;
-import br.inatel.sentinela.modelo.Servidor;
+import br.inatel.netguard.modelo.PacoteIcmp;
+import br.inatel.netguard.modelo.PacoteRede;
+import br.inatel.netguard.modelo.PacoteTcp;
+import br.inatel.netguard.modelo.Servidor;
 
 import java.util.ArrayList;
 import java.util.List;

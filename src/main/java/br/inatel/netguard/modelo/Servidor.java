@@ -1,11 +1,11 @@
-package br.inatel.sentinela.modelo;
+package br.inatel.netguard.modelo;
 
-import br.inatel.sentinela.excecao.CadastroInvalidoException;
+import br.inatel.netguard.excecao.CadastroInvalidoException;
 
 /**
  * Um servidor de uma empresa, identificado pelo endereço IP.
  *
- * Na análise, o Sentinela vigia o tráfego que chega aos servidores
+ * Na análise, o NetGuard vigia o tráfego que chega aos servidores
  * cadastrados da empresa escolhida.
  */
 public class Servidor {

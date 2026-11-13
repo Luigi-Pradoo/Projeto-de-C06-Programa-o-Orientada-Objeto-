@@ -1,4 +1,4 @@
-package br.inatel.sentinela.modelo;
+package br.inatel.netguard.modelo;
 
 /**
  * Representa um pacote de dados que trafegou pela rede.

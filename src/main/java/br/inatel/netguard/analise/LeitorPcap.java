@@ -1,9 +1,9 @@
-package br.inatel.sentinela.analise;
+package br.inatel.netguard.analise;
 
-import br.inatel.sentinela.excecao.SentinelaException;
-import br.inatel.sentinela.modelo.PacoteIcmp;
-import br.inatel.sentinela.modelo.PacoteRede;
-import br.inatel.sentinela.modelo.PacoteTcp;
+import br.inatel.netguard.excecao.NetGuardException;
+import br.inatel.netguard.modelo.PacoteIcmp;
+import br.inatel.netguard.modelo.PacoteRede;
+import br.inatel.netguard.modelo.PacoteTcp;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -58,25 +58,25 @@ public class LeitorPcap implements FonteDeTrafego {
     }
 
     @Override
-    public List<PacoteRede> obterPacotes() throws SentinelaException {
+    public List<PacoteRede> obterPacotes() throws NetGuardException {
         byte[] dados;
         try {
             dados = Files.readAllBytes(arquivo);
         } catch (NoSuchFileException e) {
-            throw new SentinelaException("arquivo não encontrado: " + arquivo.toAbsolutePath());
+            throw new NetGuardException("arquivo não encontrado: " + arquivo.toAbsolutePath());
         } catch (IOException e) {
-            throw new SentinelaException("não foi possível ler o arquivo " + arquivo, e);
+            throw new NetGuardException("não foi possível ler o arquivo " + arquivo, e);
         }
 
         ByteBuffer buffer = ByteBuffer.wrap(dados);
         if (dados.length < 24) {
-            throw new SentinelaException("o arquivo é pequeno demais para ser uma captura pcap");
+            throw new NetGuardException("o arquivo é pequeno demais para ser uma captura pcap");
         }
 
         // 1) Cabeçalho do arquivo: o número mágico revela a ordem dos bytes.
         int magico = buffer.getInt(0);
         if (magico == MAGICO_PCAPNG) {
-            throw new SentinelaException("o arquivo está no formato pcapng. No Wireshark, use"
+            throw new NetGuardException("o arquivo está no formato pcapng. No Wireshark, use"
                     + " Arquivo > Salvar como e escolha \"Wireshark/tcpdump/... - pcap\"");
         }
         if (magico != MAGICO_MICROSSEGUNDOS && magico != MAGICO_NANOSSEGUNDOS) {
@@ -84,12 +84,12 @@ public class LeitorPcap implements FonteDeTrafego {
             magico = buffer.getInt(0);
         }
         if (magico != MAGICO_MICROSSEGUNDOS && magico != MAGICO_NANOSSEGUNDOS) {
-            throw new SentinelaException("o arquivo não é uma captura pcap: " + arquivo.getFileName());
+            throw new NetGuardException("o arquivo não é uma captura pcap: " + arquivo.getFileName());
         }
         boolean nanossegundos = magico == MAGICO_NANOSSEGUNDOS;
         int enlace = buffer.getInt(20);
         if (enlace != ENLACE_ETHERNET && enlace != ENLACE_IP_PURO && enlace != ENLACE_LINUX_SLL) {
-            throw new SentinelaException("tipo de rede " + enlace + " não suportado (use uma captura Ethernet ou Wi-Fi)");
+            throw new NetGuardException("tipo de rede " + enlace + " não suportado (use uma captura Ethernet ou Wi-Fi)");
         }
 
         // 2) Um registro por pacote, até o fim do arquivo.

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Sentinela
+# NetGuard
 
 ### Sistema de Detecção de Anomalias em Redes
 
@@ -46,7 +46,7 @@ portas abertas, tentativas de derrubar servidores com excesso de conexões, aces
 inseguros. Quem vigia isso é um **IDS** (*Intrusion Detection System*, sistema de detecção de
 intrusão): um programa que olha os pacotes que passam pela rede e avisa quando algo foge do normal.
 
-O **Sentinela** é uma versão didática de um IDS, escrita em **Java com Orientação a Objetos**.
+O **NetGuard** é uma versão didática de um IDS, escrita em **Java com Orientação a Objetos**.
 Ele mantém um cadastro de empresas e dos servidores de cada uma, analisa o tráfego destinado a
 esses servidores pacote por pacote e, ao encontrar um padrão de ataque, gera um alerta com a
 gravidade, a origem e o alvo. Tudo fica guardado em um banco de dados, para consultar o
@@ -83,7 +83,7 @@ portas, MTU, ataques de negação de serviço e varredura) e **Programação Ori
 ### O menu
 
 ```
-=== SENTINELA - Detecção de Anomalias em Redes ===
+=== NETGUARD - Detecção de Anomalias em Redes ===
 1 - Cadastrar empresa
 2 - Cadastrar servidor
 3 - Listar empresas e servidores
@@ -179,13 +179,13 @@ instalar mais nada.
 |------|------|
 | **Windows** | Dois cliques em **`executar.bat`**, ou `.\executar.bat` no PowerShell, dentro da pasta do projeto |
 | **Linux / macOS** | `./executar.sh` |
-| **IDE** (IntelliJ, Eclipse, VS Code) | Abra a pasta (a IDE lê o `pom.xml`) e execute `br.inatel.sentinela.Principal` |
+| **IDE** (IntelliJ, Eclipse, VS Code) | Abra a pasta (a IDE lê o `pom.xml`) e execute `br.inatel.netguard.Principal` |
 
 Pelo terminal, sem o script (Windows):
 
 ```powershell
-javac -encoding UTF-8 -d out -cp lib\sqlite-jdbc-3.47.1.0.jar -sourcepath src\main\java src\main\java\br\inatel\sentinela\Principal.java
-java -cp "out;lib\sqlite-jdbc-3.47.1.0.jar" br.inatel.sentinela.Principal
+javac -encoding UTF-8 -d out -cp lib\sqlite-jdbc-3.47.1.0.jar -sourcepath src\main\java src\main\java\br\inatel\netguard\Principal.java
+java -cp "out;lib\sqlite-jdbc-3.47.1.0.jar" br.inatel.netguard.Principal
 ```
 
 No Linux e no macOS, troque `\` por `/` e o `;` do classpath por `:`.
@@ -206,13 +206,13 @@ No Linux e no macOS, troque `\` por `/` e o `;` do classpath por `:`.
 
 1. Instale o [Wireshark](https://www.wireshark.org/) (no Windows, junto com o Npcap).
 2. Rode `ipconfig` e anote o IPv4 do seu computador e o **Gateway Padrão** (o seu roteador).
-3. No Sentinela, cadastre uma empresa (por exemplo, "Minha Casa") e um servidor "Roteador" com o
+3. No NetGuard, cadastre uma empresa (por exemplo, "Minha Casa") e um servidor "Roteador" com o
    IP do gateway.
 4. No Wireshark, capture a interface **Wi-Fi**. Navegue, rode `ping` no roteador e, para ver
    alertas, rode `nmap <ip-do-seu-roteador>` ([nmap.org](https://nmap.org/)).
 5. Pare a captura e use **Arquivo > Salvar como**, com o tipo **"Wireshark/tcpdump/... - pcap"**.
    O formato padrão, pcapng, não é aceito.
-6. No Sentinela: opção 6 → a empresa → fonte `2` → o caminho do arquivo.
+6. No NetGuard: opção 6 → a empresa → fonte `2` → o caminho do arquivo.
 
 > [!NOTE]
 > O repositório traz `exemplos/captura-exemplo.pcap` para teste. **Ela não foi gravada em uma
@@ -231,12 +231,12 @@ O código tem **24 tipos em 5 pacotes**, cada pacote com uma responsabilidade:
 
 | Pacote | Responsabilidade | Tipos |
 |--------|------------------|-------|
-| `br.inatel.sentinela` | Ponto de entrada e menu | `Principal` |
+| `br.inatel.netguard` | Ponto de entrada e menu | `Principal` |
 | `modelo` | Os dados do sistema | `Empresa`, `Servidor`, `PacoteRede`, `PacoteTcp`, `PacoteIcmp`, `Anomalia`, `Severidade` |
 | `detector` | As regras de detecção | `Detector`, `DetectorSynFlood`, `DetectorPortScan`, `DetectorPortaSuspeita`, `DetectorTamanhoAnormal` |
 | `analise` | O processo de análise | `MotorDeteccao`, `MonitorAoVivo`, `FonteDeTrafego`, `SimuladorTrafego`, `LeitorPcap`, `Notificador`, `NotificadorConsole` |
 | `banco` | Persistência | `BancoDeDados` |
-| `excecao` | Os erros do sistema | `SentinelaException`, `CadastroInvalidoException`, `BancoDeDadosException` |
+| `excecao` | Os erros do sistema | `NetGuardException`, `CadastroInvalidoException`, `BancoDeDadosException` |
 
 ### Conceitos aplicados
 
@@ -247,7 +247,7 @@ O código tem **24 tipos em 5 pacotes**, cada pacote com uma responsabilidade:
 | **Membros `static`** | Contador de anomalias e `Anomalia.continuarNumeracaoApos(...)`; `PacoteRede.ehIpv4Valido(...)` |
 | **Enum** | `Severidade` (BAIXA, MEDIA, ALTA, CRITICA), com peso para comparação |
 | **Associação 1:N** | Uma `Empresa` tem uma `List<Servidor>` |
-| **Herança** | `PacoteRede` → `PacoteTcp`, `PacoteIcmp` · `Detector` → 4 detectores · `SentinelaException` → 2 exceções |
+| **Herança** | `PacoteRede` → `PacoteTcp`, `PacoteIcmp` · `Detector` → 4 detectores · `NetGuardException` → 2 exceções |
 | **Classes abstratas** | `PacoteRede` (não existe pacote "genérico") e `Detector` (Template Method: `analisar()` é `final` e chama o abstrato `inspecionar()`) |
 | **Interfaces** | `Notificador` e `FonteDeTrafego` (nossas); `Comparable` (do Java), para ordenar as anomalias |
 | **Polimorfismo** | `detector.analisar(pacote)`, `notificador.notificar(anomalia)`, `fonte.obterPacotes()` e `pacote.descrever()`: a mesma chamada executa código diferente conforme o objeto |
@@ -261,7 +261,7 @@ estende `Detector` e outra que implementa `FonteDeTrafego`.
 
 ## Banco de dados
 
-**SQLite**, em um único arquivo (`dados/sentinela.db`, criado na primeira execução), acessado
+**SQLite**, em um único arquivo (`dados/netguard.db`, criado na primeira execução), acessado
 por **JDBC**. Todo o SQL fica na classe `BancoDeDados`, sempre com `PreparedStatement`, o que
 protege contra SQL Injection.
 
@@ -309,7 +309,7 @@ erDiagram
 - Um servidor não pode ter o IP repetido dentro da mesma empresa (`UNIQUE`).
 - O histórico e o relatório usam `JOIN`, `GROUP BY` e `COUNT`.
 
-Para ver o conteúdo fora do programa, abra `dados/sentinela.db` no
+Para ver o conteúdo fora do programa, abra `dados/netguard.db` no
 [DB Browser for SQLite](https://sqlitebrowser.org/).
 
 > [!NOTE]
@@ -327,14 +327,20 @@ O diagrama de classes completo, com todos os atributos, métodos e relacionament
 [PNG](docs/uml/diagrama-classes-completo.png) e [SVG](docs/uml/diagrama-classes-completo.svg)).
 Há um diagrama por pacote em [`docs/uml/pacotes/`](docs/uml/pacotes/).
 
-![Visão geral das classes](docs/uml/visao-geral.png)
+Os diagramas seguem a notação usada nas aulas: classes abstratas em itálico, `<<interface>>` acima
+do nome, herança com linha cheia e triângulo vazado, implementação com linha tracejada, agregação
+(listas) com losango vazado e multiplicidade, e `+` `-` `#` para a visibilidade.
+
+**Diagrama de pacotes** (cada pacote e as suas classes):
+
+![Diagrama de pacotes](docs/uml/visao-geral.png)
 
 <sub>[↑ Voltar ao índice](#contents)</sub>
 
 ## Estrutura do repositório
 
 ```
-├── src/main/java/br/inatel/sentinela/
+├── src/main/java/br/inatel/netguard/
 │   ├── Principal.java       menu: cadastro, análise, histórico e relatório
 │   ├── modelo/              dados: empresas, servidores, pacotes, anomalias
 │   ├── detector/            os quatro detectores e a classe abstrata Detector
@@ -357,7 +363,7 @@ Há um diagrama por pacote em [`docs/uml/pacotes/`](docs/uml/pacotes/).
 |---|----------|---------------------|
 | 01 | Boas práticas | Pacotes por responsabilidade, atributos `private final`, constantes nomeadas, Javadoc, convenções do Java |
 | 02 | Classes | 24 tipos com atributos, construtores e métodos; ex.: `Empresa`, `Anomalia`, `BancoDeDados` |
-| 03 | Herança | `PacoteRede` → `PacoteTcp`/`PacoteIcmp`; `Detector` → 4 detectores; `SentinelaException` → 2 exceções |
+| 03 | Herança | `PacoteRede` → `PacoteTcp`/`PacoteIcmp`; `Detector` → 4 detectores; `NetGuardException` → 2 exceções |
 | 04 | Polimorfismo | Listas de `Detector` e `Notificador` no `MotorDeteccao`; `FonteDeTrafego` no menu; `descrever()` nos pacotes |
 | 05 | Interfaces **e** classes abstratas | Interfaces `Notificador` e `FonteDeTrafego`; classes abstratas `PacoteRede` e `Detector` |
 | 06 | Tratamento de erros | 3 exceções próprias, validação nos construtores, `try/catch` no menu, `finally` para fechar o banco |

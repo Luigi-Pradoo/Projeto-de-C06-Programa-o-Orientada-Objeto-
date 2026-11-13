@@ -1,20 +1,20 @@
-package br.inatel.sentinela.excecao;
+package br.inatel.netguard.excecao;
 
 /**
- * Exceção base de todos os erros "esperados" do Sentinela.
+ * Exceção base de todos os erros "esperados" do NetGuard.
  *
  * Herda de Exception, então é uma exceção CHECADA: o compilador obriga quem
  * chama o método a tratar (try/catch) ou a declarar (throws). As exceções
  * específicas do sistema herdam desta, o que permite capturar qualquer uma
- * delas com um único catch (SentinelaException e).
+ * delas com um único catch (NetGuardException e).
  */
-public class SentinelaException extends Exception {
+public class NetGuardException extends Exception {
 
-    public SentinelaException(String mensagem) {
+    public NetGuardException(String mensagem) {
         super(mensagem);
     }
 
-    public SentinelaException(String mensagem, Throwable causa) {
+    public NetGuardException(String mensagem, Throwable causa) {
         super(mensagem, causa);
     }
 }

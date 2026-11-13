@@ -1,22 +1,22 @@
-package br.inatel.sentinela;
+package br.inatel.netguard;
 
-import br.inatel.sentinela.analise.FonteDeTrafego;
-import br.inatel.sentinela.analise.LeitorPcap;
-import br.inatel.sentinela.analise.MonitorAoVivo;
-import br.inatel.sentinela.analise.MotorDeteccao;
-import br.inatel.sentinela.analise.NotificadorConsole;
-import br.inatel.sentinela.analise.SimuladorTrafego;
-import br.inatel.sentinela.banco.BancoDeDados;
-import br.inatel.sentinela.detector.Detector;
-import br.inatel.sentinela.detector.DetectorPortScan;
-import br.inatel.sentinela.detector.DetectorPortaSuspeita;
-import br.inatel.sentinela.detector.DetectorSynFlood;
-import br.inatel.sentinela.detector.DetectorTamanhoAnormal;
-import br.inatel.sentinela.excecao.SentinelaException;
-import br.inatel.sentinela.modelo.Anomalia;
-import br.inatel.sentinela.modelo.Empresa;
-import br.inatel.sentinela.modelo.PacoteRede;
-import br.inatel.sentinela.modelo.Servidor;
+import br.inatel.netguard.analise.FonteDeTrafego;
+import br.inatel.netguard.analise.LeitorPcap;
+import br.inatel.netguard.analise.MonitorAoVivo;
+import br.inatel.netguard.analise.MotorDeteccao;
+import br.inatel.netguard.analise.NotificadorConsole;
+import br.inatel.netguard.analise.SimuladorTrafego;
+import br.inatel.netguard.banco.BancoDeDados;
+import br.inatel.netguard.detector.Detector;
+import br.inatel.netguard.detector.DetectorPortScan;
+import br.inatel.netguard.detector.DetectorPortaSuspeita;
+import br.inatel.netguard.detector.DetectorSynFlood;
+import br.inatel.netguard.detector.DetectorTamanhoAnormal;
+import br.inatel.netguard.excecao.NetGuardException;
+import br.inatel.netguard.modelo.Anomalia;
+import br.inatel.netguard.modelo.Empresa;
+import br.inatel.netguard.modelo.PacoteRede;
+import br.inatel.netguard.modelo.Servidor;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Scanner;
 
 /**
- * Ponto de entrada do Sentinela: o menu de cadastro e de análise.
+ * Ponto de entrada do NetGuard: o menu de cadastro e de análise.
  *
  * É a única classe que conhece as classes CONCRETAS (quais detectores, quais
  * notificadores). Ela monta as peças e entrega para o motor, que só enxerga
@@ -35,7 +35,7 @@ import java.util.Scanner;
  */
 public class Principal {
 
-    private static final Path ARQUIVO_DO_BANCO = Paths.get("dados", "sentinela.db");
+    private static final Path ARQUIVO_DO_BANCO = Paths.get("dados", "netguard.db");
     private static final int PACOTES_POR_ANALISE = 20000;
     /** No modo ao vivo, mostra 1 pacote a cada 200 (cerca de 100 linhas de tráfego). */
     private static final int INTERVALO_AO_VIVO = 200;
@@ -55,7 +55,7 @@ public class Principal {
             aplicacao.cadastrarExemploSeVazio();
             Anomalia.continuarNumeracaoApos(banco.maiorNumeroDeAnomalia());
             aplicacao.executarMenu();
-        } catch (SentinelaException e) {
+        } catch (NetGuardException e) {
             System.out.println("[ERRO] " + e.getMessage());
         } finally {
             // O finally sempre executa: a conexão com o banco é fechada mesmo se der erro.
@@ -71,7 +71,7 @@ public class Principal {
         boolean continuar = true;
         while (continuar) {
             System.out.println();
-            System.out.println("=== SENTINELA - Detecção de Anomalias em Redes ===");
+            System.out.println("=== NETGUARD - Detecção de Anomalias em Redes ===");
             System.out.println("1 - Cadastrar empresa");
             System.out.println("2 - Cadastrar servidor");
             System.out.println("3 - Listar empresas e servidores");
@@ -95,19 +95,19 @@ public class Principal {
                     case "0": continuar = false; break;
                     default: System.out.println("Opção inválida.");
                 }
-            } catch (SentinelaException e) {
+            } catch (NetGuardException e) {
                 // Um único catch para toda a família: cadastro inválido ou erro de banco.
                 System.out.println("[ERRO] " + e.getMessage());
             } catch (IllegalArgumentException e) {
                 System.out.println("[ERRO] " + e.getMessage());
             }
         }
-        System.out.println("Sentinela encerrado.");
+        System.out.println("NetGuard encerrado.");
     }
 
     // ------------------------------ cadastro ------------------------------
 
-    private void cadastrarEmpresa() throws SentinelaException {
+    private void cadastrarEmpresa() throws NetGuardException {
         // O construtor de Empresa valida os dados e lança CadastroInvalidoException se algo estiver errado.
         Empresa empresa = new Empresa(lerTexto("Nome da empresa"), lerTexto("CNPJ"),
                 lerTexto("Nome do responsável"), lerTexto("E-mail do responsável"));
@@ -115,7 +115,7 @@ public class Principal {
         System.out.println("Empresa cadastrada com o id " + id + ".");
     }
 
-    private void cadastrarServidor() throws SentinelaException {
+    private void cadastrarServidor() throws NetGuardException {
         listarEmpresas();
         Servidor servidor = new Servidor(lerInteiro("Id da empresa dona do servidor"),
                 lerTexto("Nome do servidor"), lerTexto("Endereço IP"));
@@ -123,7 +123,7 @@ public class Principal {
         System.out.println("Servidor cadastrado com o id " + id + ".");
     }
 
-    private void listarEmpresas() throws SentinelaException {
+    private void listarEmpresas() throws NetGuardException {
         List<Empresa> empresas = banco.listarEmpresas();
         if (empresas.isEmpty()) {
             System.out.println("Nenhuma empresa cadastrada.");
@@ -136,20 +136,20 @@ public class Principal {
         }
     }
 
-    private void excluirEmpresa() throws SentinelaException {
+    private void excluirEmpresa() throws NetGuardException {
         listarEmpresas();
         int id = lerInteiro("Id da empresa a excluir (os servidores e análises dela também serão apagados)");
         System.out.println(banco.excluirEmpresa(id) ? "Empresa excluída." : "Não existe empresa com esse id.");
     }
 
-    private void excluirServidor() throws SentinelaException {
+    private void excluirServidor() throws NetGuardException {
         listarEmpresas();
         int id = lerInteiro("Id do servidor a excluir");
         System.out.println(banco.excluirServidor(id) ? "Servidor excluído." : "Não existe servidor com esse id.");
     }
 
     /** Se o banco estiver vazio, cadastra uma empresa fictícia para a demonstração funcionar de cara. */
-    private void cadastrarExemploSeVazio() throws SentinelaException {
+    private void cadastrarExemploSeVazio() throws NetGuardException {
         if (!banco.listarEmpresas().isEmpty()) {
             return;
         }
@@ -178,7 +178,7 @@ public class Principal {
      *
      * @return a empresa, ou null se não existir empresa com o id digitado
      */
-    private Empresa escolherEmpresa(String pergunta) throws SentinelaException {
+    private Empresa escolherEmpresa(String pergunta) throws NetGuardException {
         listarEmpresas();
         int id = lerInteiro(pergunta);
         for (Empresa empresa : banco.listarEmpresas()) {
@@ -190,7 +190,7 @@ public class Principal {
         return null;
     }
 
-    private void analisar() throws SentinelaException {
+    private void analisar() throws NetGuardException {
         Empresa empresa = escolherEmpresa("Id da empresa a analisar");
         if (empresa == null) {
             return;
@@ -236,14 +236,20 @@ public class Principal {
         System.out.println();
         System.out.println("---------------- RESUMO ----------------");
         System.out.println("Pacotes analisados: " + pacotes.size());
-        System.out.println("Anomalias         : " + totalDeAnomalias + " (salvas no banco de dados)");
+        if (motor.getFalhasDeNotificacao() == 0) {
+            System.out.println("Anomalias         : " + totalDeAnomalias + " (salvas no banco de dados)");
+        } else {
+            // Não afirma que tudo foi salvo se alguma gravação falhou.
+            System.out.println("Anomalias         : " + totalDeAnomalias + " (ATENÇÃO: " + motor.getFalhasDeNotificacao()
+                    + " alerta(s) não foram gravados no banco; veja os [ERRO] acima)");
+        }
         for (Detector detector : detectores) {
             System.out.println("  - " + detector.getNome() + ": inspecionou " + detector.getPacotesInspecionados()
                     + " pacotes, " + detector.getAnomaliasGeradas() + " anomalia(s)");
         }
     }
 
-    private void mostrarHistorico() throws SentinelaException {
+    private void mostrarHistorico() throws NetGuardException {
         System.out.println();
         System.out.println("------- ÚLTIMAS ANÁLISES -------");
         List<String> analises = banco.listarAnalises(10);
@@ -267,7 +273,7 @@ public class Principal {
     }
 
     /** Opção 8: tudo o que já foi detectado na rede de uma empresa, agrupado de três formas. */
-    private void mostrarRelatorioDeAnomalias() throws SentinelaException {
+    private void mostrarRelatorioDeAnomalias() throws NetGuardException {
         Empresa empresa = escolherEmpresa("Id da empresa");
         if (empresa == null) {
             return;
