@@ -9,28 +9,15 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-/**
- * Detecta Port Scan (varredura de portas): um mesmo IP tentando abrir conexão
- * em muitas portas DIFERENTES do mesmo servidor em pouco tempo. É o que
- * ferramentas como o nmap fazem para descobrir quais serviços estão abertos,
- * e costuma ser o primeiro passo de um ataque.
- *
- * A diferença para o SYN Flood: o SYN Flood olha a QUANTIDADE de pedidos;
- * o Port Scan olha a VARIEDADE de portas. Mil pedidos para a porta 80 não são
- * varredura; trinta pedidos para trinta portas diferentes são.
- */
+// Port Scan: o mesmo IP testando muitas portas diferentes de um servidor em pouco tempo.
+// (o SYN Flood olha a quantidade de pedidos; aqui o que importa é a variedade de portas)
 public class DetectorPortScan extends Detector {
 
     private final long janelaMs;
     private final int limitePortas;
-
-    /** Para cada par "origem -> destino": porta testada -> último instante em que foi testada. */
+    // "origem -> destino" -> (porta -> último instante em que foi testada)
     private final Map<String, Map<Integer, Long>> portasPorPar = new HashMap<>();
 
-    /**
-     * @param janelaMs     tamanho da janela de tempo, em milissegundos
-     * @param limitePortas quantidade de portas diferentes na janela a partir da qual é varredura
-     */
     public DetectorPortScan(long janelaMs, int limitePortas) {
         super("Port Scan", Severidade.ALTA);
         if (janelaMs <= 0 || limitePortas <= 0) {
@@ -48,7 +35,6 @@ public class DetectorPortScan extends Detector {
     @Override
     protected Anomalia inspecionar(PacoteRede pacote) {
         PacoteTcp tcp = (PacoteTcp) pacote;
-        // Só pedidos de conexão contam: é assim que a varredura "bate" em cada porta.
         if (!tcp.isSyn()) {
             return null;
         }
@@ -60,8 +46,7 @@ public class DetectorPortScan extends Detector {
         }
         portas.put(tcp.getPortaDestino(), tcp.getInstanteMs());
 
-        // Esquece as portas testadas há mais tempo que a janela. Para remover
-        // durante o percurso sem erro, a remoção é feita pelo Iterator (Aula 12).
+        // remove as portas antigas; tem que ser pelo Iterator para não dar erro no meio do laço
         long agora = tcp.getInstanteMs();
         Iterator<Long> iterador = portas.values().iterator();
         while (iterador.hasNext()) {

@@ -14,9 +14,9 @@ programa cadastra sozinho na primeira execução:
 ## Como rodar um caso
 
 No menu: **6** (analisar) → empresa **1** (Empresa Exemplo) → fonte **2** (arquivo) →
-caminho, por exemplo `exemplos\testes\02-syn-flood.pcap` → **n** (ou **s** para ver ao vivo).
+caminho, por exemplo `exemplos\testes\02-syn-flood.pcap`.
 
-Depois, a opção **8** mostra o relatório da empresa com os ataques encontrados.
+Depois, a opção **7** mostra os alertas salvos da empresa.
 
 ## Resultados esperados
 

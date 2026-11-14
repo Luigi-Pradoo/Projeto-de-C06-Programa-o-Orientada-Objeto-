@@ -2,7 +2,6 @@ package br.inatel.netguard;
 
 import br.inatel.netguard.analise.FonteDeTrafego;
 import br.inatel.netguard.analise.LeitorPcap;
-import br.inatel.netguard.analise.MonitorAoVivo;
 import br.inatel.netguard.analise.MotorDeteccao;
 import br.inatel.netguard.analise.NotificadorConsole;
 import br.inatel.netguard.analise.SimuladorTrafego;
@@ -18,27 +17,16 @@ import br.inatel.netguard.modelo.Empresa;
 import br.inatel.netguard.modelo.PacoteRede;
 import br.inatel.netguard.modelo.Servidor;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Scanner;
 
-/**
- * Ponto de entrada do NetGuard: o menu de cadastro e de análise.
- *
- * É a única classe que conhece as classes CONCRETAS (quais detectores, quais
- * notificadores). Ela monta as peças e entrega para o motor, que só enxerga
- * os tipos gerais.
- */
+// Menu do sistema. É a única classe que cria os detectores e notificadores concretos.
 public class Principal {
 
-    private static final Path ARQUIVO_DO_BANCO = Paths.get("dados", "netguard.db");
     private static final int PACOTES_POR_ANALISE = 20000;
-    /** No modo ao vivo, mostra 1 pacote a cada 200 (cerca de 100 linhas de tráfego). */
-    private static final int INTERVALO_AO_VIVO = 200;
 
     private final BancoDeDados banco;
     private final Scanner teclado = new Scanner(System.in);
@@ -50,22 +38,20 @@ public class Principal {
     public static void main(String[] args) {
         BancoDeDados banco = null;
         try {
-            banco = new BancoDeDados(ARQUIVO_DO_BANCO);
+            banco = new BancoDeDados(Paths.get("dados", "netguard.db"));
             Principal aplicacao = new Principal(banco);
             aplicacao.cadastrarExemploSeVazio();
-            Anomalia.continuarNumeracaoApos(banco.maiorNumeroDeAnomalia());
+            Anomalia.continuarNumeracaoApos(banco.maiorNumeroDeAlerta());
             aplicacao.executarMenu();
         } catch (NetGuardException e) {
             System.out.println("[ERRO] " + e.getMessage());
         } finally {
-            // O finally sempre executa: a conexão com o banco é fechada mesmo se der erro.
+            // roda sempre, com erro ou sem erro
             if (banco != null) {
                 banco.fechar();
             }
         }
     }
-
-    // ------------------------------ menu ------------------------------
 
     private void executarMenu() {
         boolean continuar = true;
@@ -78,8 +64,7 @@ public class Principal {
             System.out.println("4 - Excluir empresa");
             System.out.println("5 - Excluir servidor");
             System.out.println("6 - Analisar a rede de uma empresa");
-            System.out.println("7 - Ver histórico de análises");
-            System.out.println("8 - Relatório de anomalias da rede de uma empresa");
+            System.out.println("7 - Ver alertas salvos de uma empresa");
             System.out.println("0 - Sair");
             String opcao = lerTexto("Opção");
             try {
@@ -90,13 +75,12 @@ public class Principal {
                     case "4": excluirEmpresa(); break;
                     case "5": excluirServidor(); break;
                     case "6": analisar(); break;
-                    case "7": mostrarHistorico(); break;
-                    case "8": mostrarRelatorioDeAnomalias(); break;
+                    case "7": verAlertas(); break;
                     case "0": continuar = false; break;
                     default: System.out.println("Opção inválida.");
                 }
             } catch (NetGuardException e) {
-                // Um único catch para toda a família: cadastro inválido ou erro de banco.
+                // pega qualquer exceção nossa (cadastro inválido ou erro no banco)
                 System.out.println("[ERRO] " + e.getMessage());
             } catch (IllegalArgumentException e) {
                 System.out.println("[ERRO] " + e.getMessage());
@@ -105,10 +89,10 @@ public class Principal {
         System.out.println("NetGuard encerrado.");
     }
 
-    // ------------------------------ cadastro ------------------------------
+    // ---------- cadastro ----------
 
     private void cadastrarEmpresa() throws NetGuardException {
-        // O construtor de Empresa valida os dados e lança CadastroInvalidoException se algo estiver errado.
+        // o construtor de Empresa já valida os dados
         Empresa empresa = new Empresa(lerTexto("Nome da empresa"), lerTexto("CNPJ"),
                 lerTexto("Nome do responsável"), lerTexto("E-mail do responsável"));
         int id = banco.cadastrarEmpresa(empresa);
@@ -138,7 +122,7 @@ public class Principal {
 
     private void excluirEmpresa() throws NetGuardException {
         listarEmpresas();
-        int id = lerInteiro("Id da empresa a excluir (os servidores e análises dela também serão apagados)");
+        int id = lerInteiro("Id da empresa a excluir (os servidores e alertas dela também serão apagados)");
         System.out.println(banco.excluirEmpresa(id) ? "Empresa excluída." : "Não existe empresa com esse id.");
     }
 
@@ -148,7 +132,7 @@ public class Principal {
         System.out.println(banco.excluirServidor(id) ? "Servidor excluído." : "Não existe servidor com esse id.");
     }
 
-    /** Se o banco estiver vazio, cadastra uma empresa fictícia para a demonstração funcionar de cara. */
+    // na primeira vez cadastra uma empresa de exemplo para dar para testar direto
     private void cadastrarExemploSeVazio() throws NetGuardException {
         if (!banco.listarEmpresas().isEmpty()) {
             return;
@@ -161,23 +145,18 @@ public class Principal {
         System.out.println("Banco vazio: foi cadastrada a \"Empresa Exemplo\" com 3 servidores para teste.");
     }
 
-    // ------------------------------ análise ------------------------------
+    // ---------- análise ----------
 
-    /** Monta a lista de detectores com os limites usados pelo sistema. */
     private List<Detector> criarDetectores() {
         List<Detector> detectores = new ArrayList<>();
-        detectores.add(new DetectorSynFlood(1000, 100));
-        detectores.add(new DetectorPortScan(3000, 20));
+        detectores.add(new DetectorSynFlood(1000, 100));    // mais de 100 SYN em 1 s
+        detectores.add(new DetectorPortScan(3000, 20));     // mais de 20 portas em 3 s
         detectores.add(new DetectorPortaSuspeita());
-        detectores.add(new DetectorTamanhoAnormal(1500));
+        detectores.add(new DetectorTamanhoAnormal(1500));   // mais de 1500 bytes
         return detectores;
     }
 
-    /**
-     * Mostra as empresas, pergunta o id e devolve a empresa escolhida.
-     *
-     * @return a empresa, ou null se não existir empresa com o id digitado
-     */
+    // devolve null se o id não existir
     private Empresa escolherEmpresa(String pergunta) throws NetGuardException {
         listarEmpresas();
         int id = lerInteiro(pergunta);
@@ -200,47 +179,40 @@ public class Principal {
         System.out.println("  2 - Arquivo de captura .pcap (Wireshark)");
         String opcaoFonte = lerTexto("Fonte");
 
-        // As duas fontes são guardadas na mesma variável do tipo da INTERFACE.
+        // a variável é do tipo da interface, então serve para as duas fontes
         FonteDeTrafego fonte;
         if (opcaoFonte.equals("2")) {
-            // Tira as aspas que o Windows põe em "Copiar como caminho".
-            String caminho = lerTexto("Caminho do arquivo .pcap").replace("\"", "");
+            String caminho = lerTexto("Caminho do arquivo .pcap").replace("\"", ""); // tira as aspas do "Copiar como caminho"
             fonte = new LeitorPcap(Paths.get(caminho));
         } else {
             fonte = new SimuladorTrafego(empresa.getServidores(), PACOTES_POR_ANALISE);
         }
-        // POLIMORFISMO: a mesma chamada simula ou lê o arquivo, conforme o objeto.
         List<PacoteRede> pacotes = fonte.obterPacotes();
         if (pacotes.isEmpty()) {
             System.out.println("Nenhum pacote IPv4 com TCP ou ICMP encontrado (" + fonte.descrever() + ").");
             return;
         }
-        boolean aoVivo = lerTexto("Mostrar o tráfego ao vivo na tela? (s/n)").equalsIgnoreCase("s");
+
         List<Detector> detectores = criarDetectores();
         MotorDeteccao motor = new MotorDeteccao(detectores);
-        // Os dois destinos dos alertas. Para o motor, os dois são apenas "Notificador".
+        // para o motor, a tela e o banco são os dois só "Notificador"
         motor.adicionarNotificador(new NotificadorConsole());
         motor.adicionarNotificador(banco);
-        if (aoVivo) {
-            motor.setMonitor(new MonitorAoVivo(INTERVALO_AO_VIVO));
-        }
 
         System.out.println();
         System.out.println("Analisando " + pacotes.size() + " pacotes para a empresa " + empresa.getNome()
                 + " (" + fonte.descrever() + ")...");
         banco.iniciarAnalise(empresa);
         motor.executar(pacotes);
-        int totalDeAnomalias = motor.getAnomalias().size();
-        banco.finalizarAnalise(pacotes.size(), totalDeAnomalias);
+        int total = motor.getAnomalias().size();
 
         System.out.println();
         System.out.println("---------------- RESUMO ----------------");
         System.out.println("Pacotes analisados: " + pacotes.size());
         if (motor.getFalhasDeNotificacao() == 0) {
-            System.out.println("Anomalias         : " + totalDeAnomalias + " (salvas no banco de dados)");
+            System.out.println("Anomalias         : " + total + " (salvas no banco de dados)");
         } else {
-            // Não afirma que tudo foi salvo se alguma gravação falhou.
-            System.out.println("Anomalias         : " + totalDeAnomalias + " (ATENÇÃO: " + motor.getFalhasDeNotificacao()
+            System.out.println("Anomalias         : " + total + " (ATENÇÃO: " + motor.getFalhasDeNotificacao()
                     + " alerta(s) não foram gravados no banco; veja os [ERRO] acima)");
         }
         for (Detector detector : detectores) {
@@ -249,73 +221,25 @@ public class Principal {
         }
     }
 
-    private void mostrarHistorico() throws NetGuardException {
-        System.out.println();
-        System.out.println("------- ÚLTIMAS ANÁLISES -------");
-        List<String> analises = banco.listarAnalises(10);
-        if (analises.isEmpty()) {
-            System.out.println("Nenhuma análise feita ainda. Use a opção 6.");
-            return;
-        }
-        for (String linha : analises) {
-            System.out.println(linha);
-        }
-
-
-        System.out.println();
-        System.out.println("------- ANOMALIAS DA ÚLTIMA ANÁLISE (mais graves primeiro) -------");
-        List<Anomalia> anomalias = banco.listarAnomaliasDaUltimaAnalise();
-        // Ordena usando a ordem natural definida em Anomalia.compareTo.
-        Collections.sort(anomalias);
-        for (Anomalia anomalia : anomalias) {
-            System.out.println(anomalia);
-        }
-    }
-
-    /** Opção 8: tudo o que já foi detectado na rede de uma empresa, agrupado de três formas. */
-    private void mostrarRelatorioDeAnomalias() throws NetGuardException {
+    private void verAlertas() throws NetGuardException {
         Empresa empresa = escolherEmpresa("Id da empresa");
         if (empresa == null) {
             return;
         }
-        List<Anomalia> anomalias = banco.listarAnomaliasDaEmpresa(empresa.getId());
-
+        List<Anomalia> alertas = banco.listarAlertas(empresa.getId());
         System.out.println();
-        System.out.println("=============== ANOMALIAS DA REDE: " + empresa.getNome() + " ===============");
-        System.out.println("Análises feitas: " + banco.contarAnalises(empresa.getId())
-                + " | anomalias registradas: " + anomalias.size());
-        if (anomalias.isEmpty()) {
-            System.out.println("Nenhuma anomalia registrada para esta empresa. Use a opção 6.");
+        System.out.println("------- ALERTAS SALVOS: " + empresa.getNome() + " (" + alertas.size() + ") -------");
+        if (alertas.isEmpty()) {
+            System.out.println("Nenhum alerta salvo para esta empresa. Use a opção 6.");
             return;
         }
-
-        imprimirContagem("POR TIPO DE ATAQUE", banco.contarPorTipo(empresa.getId()));
-        imprimirContagem("POR IP DE ORIGEM (quem atacou)", banco.contarPorIpAtacante(empresa.getId()));
-        imprimirContagem("POR SERVIDOR (quem foi atacado)", banco.contarPorServidor(empresa.getId()));
-
-        System.out.println();
-        System.out.println("------- TODAS AS ANOMALIAS (mais graves primeiro) -------");
-        Collections.sort(anomalias); // usa Anomalia.compareTo
-        for (Anomalia anomalia : anomalias) {
-            System.out.println(anomalia);
+        Collections.sort(alertas); // usa o compareTo da Anomalia: mais graves primeiro
+        for (Anomalia alerta : alertas) {
+            System.out.println(alerta);
         }
     }
 
-    /** Imprime um agrupamento do relatório com uma barra de "#" proporcional ao total. */
-    private void imprimirContagem(String titulo, Map<String, Integer> contagem) {
-        System.out.println();
-        System.out.println("------- " + titulo + " -------");
-        int maior = 1;
-        for (int total : contagem.values()) {
-            maior = Math.max(maior, total);
-        }
-        for (Map.Entry<String, Integer> item : contagem.entrySet()) {
-            int tamanhoDaBarra = Math.max(1, item.getValue() * 30 / maior);
-            System.out.printf("  %-36s %3d  %s%n", item.getKey(), item.getValue(), "#".repeat(tamanhoDaBarra));
-        }
-    }
-
-    // ------------------------------ teclado ------------------------------
+    // ---------- teclado ----------
 
     private String lerTexto(String pergunta) {
         System.out.print(pergunta + ": ");

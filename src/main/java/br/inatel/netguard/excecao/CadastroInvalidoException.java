@@ -1,12 +1,6 @@
 package br.inatel.netguard.excecao;
 
-/**
- * Lançada quando o usuário digita um dado de cadastro inválido: nome vazio,
- * CNPJ sem 14 dígitos, e-mail sem @, endereço IP impossível...
- *
- * É um erro esperado (gente digita errado), por isso é checada: o menu é
- * obrigado a tratar, avisando o usuário em vez de deixar o programa cair.
- */
+// Dado de cadastro inválido (nome vazio, CNPJ errado, IP errado...).
 public class CadastroInvalidoException extends NetGuardException {
 
     public CadastroInvalidoException(String mensagem) {

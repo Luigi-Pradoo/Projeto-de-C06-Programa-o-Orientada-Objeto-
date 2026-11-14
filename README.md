@@ -49,8 +49,8 @@ intrusão): um programa que olha os pacotes que passam pela rede e avisa quando 
 O **NetGuard** é uma versão didática de um IDS, escrita em **Java com Orientação a Objetos**.
 Ele mantém um cadastro de empresas e dos servidores de cada uma, analisa o tráfego destinado a
 esses servidores pacote por pacote e, ao encontrar um padrão de ataque, gera um alerta com a
-gravidade, a origem e o alvo. Tudo fica guardado em um banco de dados, para consultar o
-histórico e ver quem mais ataca e quem mais é atacado.
+gravidade, a origem e o alvo. O cadastro e os alertas ficam guardados em um banco de dados,
+para consultar depois.
 
 O projeto une as duas pontas do curso: **Redes de Computadores** (Ethernet, IPv4, TCP, ICMP,
 portas, MTU, ataques de negação de serviço e varredura) e **Programação Orientada a Objetos**
@@ -66,10 +66,8 @@ portas, MTU, ataques de negação de serviço e varredura) e **Programação Ori
 | 🖥️ | **Cadastro de servidores** | Nome e endereço IPv4 (validado), ligados a uma empresa |
 | 🔍 | **Análise de tráfego** | 20.000 pacotes simulados **ou** uma captura real `.pcap` do Wireshark |
 | 🚨 | **Quatro detectores** | SYN Flood, Port Scan, Porta suspeita e Tamanho anormal |
-| 📺 | **Modo ao vivo** | O tráfego rola na tela durante a análise, com os pacotes suspeitos destacados |
-| 🗄️ | **Banco de dados** | Cadastro, análises e alertas salvos em SQLite |
-| 📜 | **Histórico** | Últimas análises e alertas da mais recente, do mais grave ao menos grave |
-| 📊 | **Relatório de anomalias** | Ataques de uma empresa agrupados por tipo, por IP de origem e por servidor atacado |
+| 🗄️ | **Banco de dados** | Cadastro e alertas salvos em SQLite |
+| 📜 | **Alertas salvos** | Os alertas de uma empresa, lidos do banco, do mais grave ao menos grave |
 
 ### Os detectores
 
@@ -90,8 +88,7 @@ portas, MTU, ataques de negação de serviço e varredura) e **Programação Ori
 4 - Excluir empresa
 5 - Excluir servidor
 6 - Analisar a rede de uma empresa
-7 - Ver histórico de análises
-8 - Relatório de anomalias da rede de uma empresa
+7 - Ver alertas salvos de uma empresa
 0 - Sair
 ```
 
@@ -119,7 +116,6 @@ flowchart TB
         TELA["NotificadorConsole<br/>tela"]
         BANCO[("BancoDeDados<br/>SQLite")]
     end
-    MOTOR -. modo ao vivo .-> MON["MonitorAoVivo"]
 ```
 
 1. Escolhida uma empresa, o tráfego vem de uma das duas **fontes**. As duas implementam a mesma
@@ -127,45 +123,43 @@ flowchart TB
 2. O **motor** entrega cada pacote a todos os **detectores**. Cada detector aplica a sua regra
    e, se encontrar um ataque, devolve uma **anomalia**.
 3. Cada anomalia vai para todos os **notificadores**: aparece na tela e é gravada no banco,
-   ligada ao servidor atacado.
-4. No **modo ao vivo**, o monitor mostra uma amostra do tráfego (1 pacote a cada 200), todos os
-   pacotes suspeitos e o progresso a cada 25%.
+   ligada à empresa analisada.
 
 <sub>[↑ Voltar ao índice](#contents)</sub>
 
 ## Demonstração
 
-**Análise com o modo ao vivo** (opção 6): o ataque aparece no meio do tráfego normal, com o alerta
-logo abaixo do pacote que o disparou.
+**Análise da Empresa Exemplo com tráfego simulado** (opção 6):
 
 ```
 Analisando 20000 pacotes para a empresa Empresa Exemplo (tráfego simulado para 3 servidor(es))...
+[ALERTA] #1 [CRITICA] 18:01:04 | SYN Flood | de 203.0.113.66 | 101 pedidos de conexão em 1000 ms contra 10.0.0.10:80 (limite: 100)
+[ALERTA] #2 [ALTA] 18:01:20 | Port Scan | de 203.0.113.200 | 21 portas diferentes testadas em 10.0.0.20 em até 3000 ms (limite: 20)
+[ALERTA] #3 [ALTA] 18:01:36 | Porta suspeita | de 192.168.1.37 | tráfego para 10.0.0.25:4444, porta padrão de shell remoto do Metasploit
+[ALERTA] #4 [ALTA] 18:01:36 | Porta suspeita | de 198.51.100.23 | tráfego para 10.0.0.25:23, Telnet (acesso remoto sem criptografia)
+[ALERTA] #5 [BAIXA] 18:02:03 | Tamanho anormal | de 203.0.113.150 | pacote ICMP acima de 1500 bytes: ICMP 203.0.113.150 -> 10.0.0.10 [tipo 8] 65000 bytes
+[ALERTA] #6 [BAIXA] 18:02:03 | Tamanho anormal | de 192.168.1.51 | pacote TCP acima de 1500 bytes: TCP 192.168.1.51:53337 -> 10.0.0.20:443 9000 bytes
 
----------------- TRÁFEGO AO VIVO ----------------
-  [ 2800] TCP 192.168.1.39:52206 -> 10.0.0.20:80 114 bytes
-  [ 3000] TCP 192.168.1.41:63940 -> 10.0.0.25:443 196 bytes
-  [ 3101] TCP 203.0.113.66:60885 -> 10.0.0.10:80 [SYN] 60 bytes   <<< SUSPEITO
-[ALERTA] #1 [CRITICA] 16:03:00 | SYN Flood | de 203.0.113.66 | 101 pedidos de conexão em 1000 ms contra 10.0.0.10:80 (limite: 100)
-  [ 3200] TCP 203.0.113.66:62026 -> 10.0.0.10:80 [SYN] 60 bytes
-  ...... 5000 de 20000 pacotes analisados (25%), 1 alerta(s) até agora ......
+---------------- RESUMO ----------------
+Pacotes analisados: 20000
+Anomalias         : 6 (salvas no banco de dados)
+  - SYN Flood: inspecionou 18076 pacotes, 1 anomalia(s)
+  - Port Scan: inspecionou 18076 pacotes, 1 anomalia(s)
+  - Porta suspeita: inspecionou 18076 pacotes, 2 anomalia(s)
+  - Tamanho anormal: inspecionou 20000 pacotes, 2 anomalia(s)
 ```
 
-**Relatório de anomalias da rede** (opção 8):
+**Alertas salvos no banco** (opção 7), do mais grave para o menos grave:
 
 ```
-=============== ANOMALIAS DA REDE: Empresa Exemplo ===============
-Análises feitas: 1 | anomalias registradas: 6
-
-------- POR TIPO DE ATAQUE -------
-  Porta suspeita [ALTA]                  2  ##############################
-  Tamanho anormal [BAIXA]                2  ##############################
-  Port Scan [ALTA]                       1  ###############
-  SYN Flood [CRITICA]                    1  ###############
-
-------- POR SERVIDOR (quem foi atacado) -------
-  Servidor de E-mail (10.0.0.25)         2  ##############################
-  Servidor de Arquivos (10.0.0.20)       2  ##############################
-  Servidor Web (10.0.0.10)               2  ##############################
+------- ALERTAS SALVOS: Empresa Exemplo (7) -------
+#7 [CRITICA] 12:06:45 | SYN Flood | de 203.0.113.66 | 101 pedidos de conexão em 1000 ms contra 10.0.0.10:80 (limite: 100)
+#1 [CRITICA] 18:01:04 | SYN Flood | de 203.0.113.66 | 101 pedidos de conexão em 1000 ms contra 10.0.0.10:80 (limite: 100)
+#2 [ALTA] 18:01:20 | Port Scan | de 203.0.113.200 | 21 portas diferentes testadas em 10.0.0.20 em até 3000 ms (limite: 20)
+#3 [ALTA] 18:01:36 | Porta suspeita | de 192.168.1.37 | tráfego para 10.0.0.25:4444, porta padrão de shell remoto do Metasploit
+#4 [ALTA] 18:01:36 | Porta suspeita | de 198.51.100.23 | tráfego para 10.0.0.25:23, Telnet (acesso remoto sem criptografia)
+#5 [BAIXA] 18:02:03 | Tamanho anormal | de 203.0.113.150 | pacote ICMP acima de 1500 bytes: ICMP 203.0.113.150 -> 10.0.0.10 [tipo 8] 65000 bytes
+#6 [BAIXA] 18:02:03 | Tamanho anormal | de 192.168.1.51 | pacote TCP acima de 1500 bytes: TCP 192.168.1.51:53337 -> 10.0.0.20:443 9000 bytes
 ```
 
 <sub>[↑ Voltar ao índice](#contents)</sub>
@@ -192,8 +186,7 @@ No Linux e no macOS, troque `\` por `/` e o `;` do classpath por `:`.
 
 > [!TIP]
 > Na primeira execução o banco está vazio, então o programa cadastra sozinho uma **Empresa
-> Exemplo** com 3 servidores. Basta escolher a opção **6**, a empresa **1**, a fonte **1** e
-> responder **s** para ver a análise ao vivo.
+> Exemplo** com 3 servidores. Basta escolher a opção **6**, a empresa **1** e a fonte **1**.
 
 <sub>[↑ Voltar ao índice](#contents)</sub>
 
@@ -233,14 +226,14 @@ Exemplo, então basta escolher a empresa 1 e a fonte 2.
 
 ### Pacotes
 
-O código tem **24 tipos em 5 pacotes**, cada pacote com uma responsabilidade:
+O código tem **23 tipos em 5 pacotes**, cada pacote com uma responsabilidade:
 
 | Pacote | Responsabilidade | Tipos |
 |--------|------------------|-------|
 | `br.inatel.netguard` | Ponto de entrada e menu | `Principal` |
 | `modelo` | Os dados do sistema | `Empresa`, `Servidor`, `PacoteRede`, `PacoteTcp`, `PacoteIcmp`, `Anomalia`, `Severidade` |
 | `detector` | As regras de detecção | `Detector`, `DetectorSynFlood`, `DetectorPortScan`, `DetectorPortaSuspeita`, `DetectorTamanhoAnormal` |
-| `analise` | O processo de análise | `MotorDeteccao`, `MonitorAoVivo`, `FonteDeTrafego`, `SimuladorTrafego`, `LeitorPcap`, `Notificador`, `NotificadorConsole` |
+| `analise` | O processo de análise | `MotorDeteccao`, `FonteDeTrafego`, `SimuladorTrafego`, `LeitorPcap`, `Notificador`, `NotificadorConsole` |
 | `banco` | Persistência | `BancoDeDados` |
 | `excecao` | Os erros do sistema | `NetGuardException`, `CadastroInvalidoException`, `BancoDeDadosException` |
 
@@ -274,9 +267,7 @@ protege contra SQL Injection.
 ```mermaid
 erDiagram
     EMPRESAS ||--o{ SERVIDORES : "possui"
-    EMPRESAS ||--o{ ANALISES : "passa por"
-    ANALISES ||--o{ ANOMALIAS : "encontra"
-    SERVIDORES |o--o{ ANOMALIAS : "sofre"
+    EMPRESAS ||--o{ ALERTAS : "recebe"
     EMPRESAS {
         int id PK
         text nome
@@ -290,18 +281,11 @@ erDiagram
         text nome
         text ip
     }
-    ANALISES {
+    ALERTAS {
         int id PK
         int empresa_id FK
-        text data_hora
-        int pacotes
-        int anomalias
-    }
-    ANOMALIAS {
-        int id PK
-        int analise_id FK
-        int servidor_id FK
         int numero
+        int instante_ms
         text tipo
         text severidade
         text ip_suspeito
@@ -310,10 +294,9 @@ erDiagram
     }
 ```
 
-- Ao excluir uma empresa, o banco apaga junto os servidores e as análises dela
+- Ao excluir uma empresa, o banco apaga junto os servidores e os alertas dela
   (`ON DELETE CASCADE`).
 - Um servidor não pode ter o IP repetido dentro da mesma empresa (`UNIQUE`).
-- O histórico e o relatório usam `JOIN`, `GROUP BY` e `COUNT`.
 
 Para ver o conteúdo fora do programa, abra `dados/netguard.db` no
 [DB Browser for SQLite](https://sqlitebrowser.org/).
@@ -321,7 +304,7 @@ Para ver o conteúdo fora do programa, abra `dados/netguard.db` no
 > [!NOTE]
 > **Por que SQLite e não MySQL?** O SQLite guarda o banco inteiro em um arquivo e não precisa de
 > servidor instalado, então o projeto roda em qualquer computador só com o Java. O SQL usado é o
-> mesmo do MySQL (`CREATE TABLE`, `INSERT`, `JOIN`, `GROUP BY`). Como todo o SQL está na classe
+> mesmo do MySQL (`CREATE TABLE`, `INSERT`, `SELECT`, `DELETE`). Como todo o SQL está na classe
 > `BancoDeDados`, trocar para MySQL mexeria só nessa classe e no driver.
 
 <sub>[↑ Voltar ao índice](#contents)</sub>
@@ -333,7 +316,7 @@ O diagrama de classes completo, com todos os atributos, métodos e relacionament
 [PNG](docs/uml/diagrama-classes-completo.png) e [SVG](docs/uml/diagrama-classes-completo.svg)).
 Há um diagrama por pacote em [`docs/uml/pacotes/`](docs/uml/pacotes/).
 
-O diagrama completo é grande porque mostra as 24 classes com todos os atributos e métodos; ele foi
+O diagrama completo é grande porque mostra as 23 classes com todos os atributos e métodos; ele foi
 feito para ver na tela com zoom. Para **imprimir ou projetar**, use
 [`docs/uml/uml-para-imprimir.pdf`](docs/uml/uml-para-imprimir.pdf): o mesmo diagrama dividido em
 8 folhas A4, um grupo de classes por folha, com a letra legível.
@@ -352,10 +335,10 @@ do nome, herança com linha cheia e triângulo vazado, implementação com linha
 
 ```
 ├── src/main/java/br/inatel/netguard/
-│   ├── Principal.java       menu: cadastro, análise, histórico e relatório
+│   ├── Principal.java       menu: cadastro, análise e alertas salvos
 │   ├── modelo/              dados: empresas, servidores, pacotes, anomalias
 │   ├── detector/            os quatro detectores e a classe abstrata Detector
-│   ├── analise/             motor, monitor ao vivo, fontes de tráfego, notificadores
+│   ├── analise/             motor, fontes de tráfego, notificadores
 │   ├── banco/               BancoDeDados (SQLite via JDBC)
 │   └── excecao/             exceções do sistema
 ├── lib/                     driver JDBC do SQLite
@@ -372,8 +355,8 @@ do nome, herança com linha cheia e triângulo vazado, implementação com linha
 
 | # | Critério | Onde ver no projeto |
 |---|----------|---------------------|
-| 01 | Boas práticas | Pacotes por responsabilidade, atributos `private final`, constantes nomeadas, Javadoc, convenções do Java |
-| 02 | Classes | 24 tipos com atributos, construtores e métodos; ex.: `Empresa`, `Anomalia`, `BancoDeDados` |
+| 01 | Boas práticas | Pacotes por responsabilidade, atributos `private final`, constantes nomeadas, comentários curtos, convenções do Java |
+| 02 | Classes | 23 tipos com atributos, construtores e métodos; ex.: `Empresa`, `Anomalia`, `BancoDeDados` |
 | 03 | Herança | `PacoteRede` → `PacoteTcp`/`PacoteIcmp`; `Detector` → 4 detectores; `NetGuardException` → 2 exceções |
 | 04 | Polimorfismo | Listas de `Detector` e `Notificador` no `MotorDeteccao`; `FonteDeTrafego` no menu; `descrever()` nos pacotes |
 | 05 | Interfaces **e** classes abstratas | Interfaces `Notificador` e `FonteDeTrafego`; classes abstratas `PacoteRede` e `Detector` |
@@ -410,7 +393,8 @@ A ferramenta foi utilizada em diferentes etapas do projeto, principalmente como 
 
 - **Planejamento e arquitetura:** apoio na definição da organização do projeto, incluindo pacotes, hierarquia de classes, interfaces e estrutura do banco de dados, considerando o tema e os critérios estabelecidos pelo edital.
 - **Desenvolvimento:** assistência na implementação das funcionalidades em Java, como cadastro de empresas e servidores, armazenamento de informações, monitoramento do tráfego de rede e identificação de anomalias.
-- **Evolução das funcionalidades:** apoio na inclusão do modo de monitoramento ao vivo, geração de relatórios, identificação de atividades suspeitas de Port Scan e leitura de arquivos de captura `.pcap`, incluindo a integração com a interface `FonteDeTrafego` e a classe `LeitorPcap`.
+- **Evolução das funcionalidades:** apoio na inclusão da identificação de atividades suspeitas de Port Scan e da leitura de arquivos de captura `.pcap`, incluindo a integração com a interface `FonteDeTrafego` e a classe `LeitorPcap`.
+- **Simplificação:** a pedido do grupo, apoio para enxugar o código, retirando funções extras (modo ao vivo, histórico de análises e relatório agrupado) e deixando os comentários mais curtos, para manter o foco nos conceitos de orientação a objetos.
 - **Revisão e aperfeiçoamento:** utilização da ferramenta para analisar o código, identificar inconsistências e realizar ajustes, como melhorias na validação de endereços IP e na numeração dos registros de anomalias.
 - **Documentação e testes:** auxílio na elaboração dos diagramas UML, dos scripts de execução, do README e de uma documentação de apoio para compreensão das decisões de projeto e dos conceitos de orientação a objetos aplicados.
 

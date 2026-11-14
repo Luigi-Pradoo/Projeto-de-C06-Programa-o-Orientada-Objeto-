@@ -7,14 +7,8 @@ import br.inatel.netguard.modelo.Severidade;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Classe abstrata que representa qualquer regra de detecção de anomalias.
- *
- * Guarda o que é igual em todos os detectores (nome, severidade, contadores)
- * e a "receita" de como um pacote é analisado. O método analisar() define os
- * passos fixos e chama inspecionar(), que é abstrato: cada detector concreto
- * só escreve a sua regra.
- */
+// Classe mãe de todos os detectores. O analisar() tem os passos fixos e chama
+// inspecionar(), que é abstrato: cada detector escreve só a sua regra.
 public abstract class Detector {
 
     private final String nome;
@@ -28,12 +22,8 @@ public abstract class Detector {
         this.severidade = severidade;
     }
 
-    /**
-     * Receita fixa da análise: filtra, conta, inspeciona e conta de novo.
-     * É final para que nenhuma subclasse possa mudar essa sequência.
-     *
-     * @return a anomalia encontrada, ou null se o pacote está normal
-     */
+    // final: as subclasses não podem mudar essa sequência
+    // devolve null quando o pacote está normal
     public final Anomalia analisar(PacoteRede pacote) {
         if (!aceita(pacote)) {
             return null;
@@ -46,31 +36,20 @@ public abstract class Detector {
         return resultado;
     }
 
-    /**
-     * Diz se este detector se interessa pelo pacote. O padrão é aceitar todos;
-     * as subclasses sobrescrevem para filtrar (ex.: só TCP).
-     */
+    // por padrão aceita qualquer pacote; quem quiser filtrar sobrescreve
     protected boolean aceita(PacoteRede pacote) {
         return true;
     }
 
-    /**
-     * A regra de detecção propriamente dita. Cada subclasse implementa a sua.
-     *
-     * @return a anomalia encontrada, ou null se o pacote não tem nada de suspeito
-     */
+    // a regra de cada detector
     protected abstract Anomalia inspecionar(PacoteRede pacote);
 
-    /** Cria uma anomalia já com o nome e a severidade deste detector. */
     protected Anomalia novaAnomalia(PacoteRede pacote, String descricao) {
         return new Anomalia(nome, severidade, pacote.getIpOrigem(), pacote.getIpDestino(),
                 pacote.getInstanteMs(), descricao);
     }
 
-    /**
-     * Evita repetir o mesmo alerta: devolve true só na primeira vez que a
-     * chave aparece (Set.add devolve false quando o elemento já existia).
-     */
+    // evita alerta repetido: o add do Set devolve false se a chave já existia
     protected boolean primeiraVez(String chave) {
         return jaAlertados.add(chave);
     }

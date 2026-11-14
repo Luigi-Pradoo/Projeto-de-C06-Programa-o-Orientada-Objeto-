@@ -2,15 +2,12 @@ package br.inatel.netguard.analise;
 
 import br.inatel.netguard.modelo.Anomalia;
 
-/**
- * Mostra cada alerta na tela, no momento em que a anomalia é detectada.
- */
+// Mostra o alerta na tela.
 public class NotificadorConsole implements Notificador {
 
+    // não precisa de throws: escrever na tela não falha
     @Override
     public void notificar(Anomalia anomalia) {
-        // Não declara "throws": escrever na tela não falha, e uma implementação
-        // pode lançar MENOS exceções do que a interface permite.
         System.out.println("[ALERTA] " + anomalia);
     }
 }

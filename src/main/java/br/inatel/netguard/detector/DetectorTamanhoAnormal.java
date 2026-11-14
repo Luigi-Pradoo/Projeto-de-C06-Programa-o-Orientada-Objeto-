@@ -4,14 +4,8 @@ import br.inatel.netguard.modelo.Anomalia;
 import br.inatel.netguard.modelo.PacoteRede;
 import br.inatel.netguard.modelo.Severidade;
 
-
-/**
- * Detecta pacotes maiores que o tamanho máximo normal da rede (1500 bytes em
- * uma rede Ethernet). Pacotes gigantes indicam ataques como o "ping da morte".
- *
- * Vale para qualquer protocolo, então NÃO sobrescreve aceita(): usa o
- * comportamento herdado de Detector, que aceita todos os pacotes.
- */
+// Pacote maior que o normal da rede (1500 bytes no Ethernet), como o "ping da morte".
+// Vale para TCP e ICMP, então não sobrescreve o aceita().
 public class DetectorTamanhoAnormal extends Detector {
 
     private final int limiteBytes;
@@ -29,7 +23,7 @@ public class DetectorTamanhoAnormal extends Detector {
         if (pacote.getTamanhoBytes() <= limiteBytes || !primeiraVez(pacote.getIpOrigem())) {
             return null;
         }
-        // descrever() é polimórfico: o texto depende do tipo real do pacote (TCP ou ICMP).
+        // descrever() muda conforme o tipo do pacote (polimorfismo)
         String descricao = "pacote " + pacote.getProtocolo() + " acima de " + limiteBytes + " bytes: "
                 + pacote.descrever();
         return novaAnomalia(pacote, descricao);

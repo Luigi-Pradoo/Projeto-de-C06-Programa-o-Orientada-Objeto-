@@ -1,12 +1,6 @@
 package br.inatel.netguard.modelo;
 
-/**
- * Nível de gravidade de uma anomalia.
- *
- * Um enum é uma classe com um conjunto FIXO de objetos: só existem estes
- * quatro. Cada um guarda um peso, usado para ordenar os alertas do mais
- * grave para o menos grave.
- */
+// Nível de gravidade de um alerta. O peso é usado para ordenar (mais grave primeiro).
 public enum Severidade {
 
     BAIXA(1),

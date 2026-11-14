@@ -1,9 +1,6 @@
 package br.inatel.netguard.modelo;
 
-/**
- * Pacote TCP: além do que todo pacote tem, guarda as portas de origem e de
- * destino e a flag SYN, que indica um pedido de abertura de conexão.
- */
+// Pacote TCP: tem portas e a flag SYN (pedido de conexão).
 public class PacoteTcp extends PacoteRede {
 
     private final int portaOrigem;
@@ -12,7 +9,6 @@ public class PacoteTcp extends PacoteRede {
 
     public PacoteTcp(long instanteMs, String ipOrigem, String ipDestino, int tamanhoBytes,
                      int portaOrigem, int portaDestino, boolean syn) {
-        // super(...) chama o construtor de PacoteRede, que valida e guarda a parte comum.
         super(instanteMs, ipOrigem, ipDestino, tamanhoBytes);
         if (portaOrigem < 0 || portaOrigem > 65535 || portaDestino < 0 || portaDestino > 65535) {
             throw new IllegalArgumentException("porta fora da faixa 0-65535");
@@ -30,7 +26,6 @@ public class PacoteTcp extends PacoteRede {
         return portaDestino;
     }
 
-    /** SYN ligado: alguém está pedindo para abrir uma conexão nova. */
     public boolean isSyn() {
         return syn;
     }

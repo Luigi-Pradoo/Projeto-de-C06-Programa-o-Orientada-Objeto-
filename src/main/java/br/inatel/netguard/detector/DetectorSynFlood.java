@@ -10,24 +10,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Detecta SYN Flood: um mesmo IP pedindo conexões TCP (SYN) em ritmo muito
- * acima do normal, para esgotar os recursos do servidor.
- *
- * Um SYN sozinho é normal; o problema é a quantidade dentro de uma janela de
- * tempo. Por isso o detector guarda, para cada IP de origem, os instantes dos
- * SYN recentes e conta quantos caíram na janela.
- */
+// SYN Flood: o mesmo IP pedindo conexão (SYN) muitas vezes em pouco tempo.
 public class DetectorSynFlood extends Detector {
 
     private final long janelaMs;
     private final int limite;
+    // IP de origem -> instantes dos SYN recentes
     private final Map<String, List<Long>> synPorOrigem = new HashMap<>();
 
-    /**
-     * @param janelaMs tamanho da janela de tempo, em milissegundos
-     * @param limite   quantidade de SYN na janela a partir da qual é ataque
-     */
     public DetectorSynFlood(long janelaMs, int limite) {
         super("SYN Flood", Severidade.CRITICA);
         if (janelaMs <= 0 || limite <= 0) {
@@ -37,6 +27,7 @@ public class DetectorSynFlood extends Detector {
         this.limite = limite;
     }
 
+    // só olha pacotes TCP
     @Override
     protected boolean aceita(PacoteRede pacote) {
         return pacote instanceof PacoteTcp;
@@ -55,11 +46,12 @@ public class DetectorSynFlood extends Detector {
             synPorOrigem.put(origem, instantes);
         }
         instantes.add(tcp.getInstanteMs());
-        // Os instantes ficam em ordem de chegada: o mais velho está na posição 0.
-        // Remove do começo da lista os SYN mais velhos que a janela.
+
+        // tira do começo da lista os SYN que já saíram da janela
         while (tcp.getInstanteMs() - instantes.get(0) > janelaMs) {
             instantes.remove(0);
         }
+
         if (instantes.size() > limite && primeiraVez(origem)) {
             String descricao = instantes.size() + " pedidos de conexão em " + janelaMs + " ms contra "
                     + tcp.getIpDestino() + ":" + tcp.getPortaDestino() + " (limite: " + limite + ")";

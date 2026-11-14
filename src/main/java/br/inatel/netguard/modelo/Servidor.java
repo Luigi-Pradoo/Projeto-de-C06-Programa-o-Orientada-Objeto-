@@ -2,12 +2,7 @@ package br.inatel.netguard.modelo;
 
 import br.inatel.netguard.excecao.CadastroInvalidoException;
 
-/**
- * Um servidor de uma empresa, identificado pelo endereço IP.
- *
- * Na análise, o NetGuard vigia o tráfego que chega aos servidores
- * cadastrados da empresa escolhida.
- */
+// Servidor de uma empresa, identificado pelo IP.
 public class Servidor {
 
     private final int id;
@@ -15,20 +10,12 @@ public class Servidor {
     private final String nome;
     private final String ip;
 
-    /**
-     * Cria um servidor NOVO, que ainda não está no banco.
-     *
-     * @throws CadastroInvalidoException se o nome estiver vazio ou o IP for inválido
-     */
+    // servidor novo, ainda sem id
     public Servidor(int empresaId, String nome, String ip) throws CadastroInvalidoException {
         this(0, empresaId, nome, ip);
     }
 
-    /**
-     * Recria um servidor lido do banco, com o id que o banco deu a ele.
-     *
-     * @throws CadastroInvalidoException se o nome estiver vazio ou o IP for inválido
-     */
+    // servidor lido do banco, já com id
     public Servidor(int id, int empresaId, String nome, String ip) throws CadastroInvalidoException {
         if (nome == null || nome.isBlank()) {
             throw new CadastroInvalidoException("o nome do servidor não pode ficar vazio");

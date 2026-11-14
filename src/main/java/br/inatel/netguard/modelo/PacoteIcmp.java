@@ -1,11 +1,6 @@
 package br.inatel.netguard.modelo;
 
-/**
- * Pacote ICMP, o protocolo de mensagens de controle (é o que o comando "ping" usa).
- *
- * ICMP não tem portas. No lugar delas existe um "tipo" de mensagem:
- * 8 é o pedido de eco ("tem alguém aí?") e 0 é a resposta.
- */
+// Pacote ICMP (o do ping). Não tem porta, tem um tipo: 8 = pedido, 0 = resposta.
 public class PacoteIcmp extends PacoteRede {
 
     public static final int TIPO_ECHO_REPLY = 0;

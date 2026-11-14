@@ -9,46 +9,28 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Inventa o tráfego que chega aos servidores de uma empresa: clientes
- * acessando os servidores e pings normais, com quatro ataques no meio.
- *
- * Existe para que o sistema possa ser demonstrado em qualquer computador,
- * sem precisar de permissão de administrador nem de uma rede sob ataque.
- * Usa uma semente fixa, então a mesma simulação se repete sempre igual.
- */
+// Gera tráfego falso para os servidores de uma empresa: acessos normais com
+// quatro ataques no meio. Serve para testar sem precisar de uma rede real.
 public class SimuladorTrafego implements FonteDeTrafego {
-
-    public static final int TOTAL_MINIMO = 2000;
 
     private final List<Servidor> servidores;
     private final int totalPacotes;
-    private final Random aleatorio = new Random(42);
+    private final Random aleatorio = new Random(42); // semente fixa: sempre gera o mesmo tráfego
     private final List<PacoteRede> pacotes = new ArrayList<>();
-
-    /** Relógio da rede simulada: é ele que carimba o instante de cada pacote. */
     private long relogioMs = System.currentTimeMillis();
 
-    /**
-     * @throws IllegalArgumentException se não houver servidor ou se a quantidade for pequena demais
-     */
     public SimuladorTrafego(List<Servidor> servidores, int totalPacotes) {
         if (servidores == null || servidores.isEmpty()) {
             throw new IllegalArgumentException("a empresa precisa ter pelo menos um servidor cadastrado");
         }
-        if (totalPacotes < TOTAL_MINIMO) {
-            throw new IllegalArgumentException(
-                    "a simulação precisa de pelo menos " + TOTAL_MINIMO + " pacotes, recebido " + totalPacotes);
+        if (totalPacotes < 2000) {
+            throw new IllegalArgumentException("a simulação precisa de pelo menos 2000 pacotes");
         }
         this.servidores = new ArrayList<>(servidores);
         this.totalPacotes = totalPacotes;
     }
 
-    /**
-     * @return a lista de pacotes simulados, na ordem em que "chegaram".
-     *         Diferente da interface, não declara "throws": simular nunca falha,
-     *         e uma implementação pode lançar menos exceções que o contrato.
-     */
+    // sem throws: simular não dá erro
     @Override
     public List<PacoteRede> obterPacotes() {
         pacotes.clear();
@@ -74,9 +56,7 @@ public class SimuladorTrafego implements FonteDeTrafego {
         return "tráfego simulado para " + servidores.size() + " servidor(es)";
     }
 
-    // ------------------------------ ataques ------------------------------
-
-    /** 600 pedidos de conexão em pouco mais de um segundo contra o primeiro servidor. */
+    // 600 SYN em pouco mais de 1 segundo contra o primeiro servidor
     private void injetarSynFlood() {
         String alvo = servidores.get(0).getIp();
         for (int i = 0; i < 600; i++) {
@@ -85,11 +65,7 @@ public class SimuladorTrafego implements FonteDeTrafego {
         }
     }
 
-    /**
-     * Uma varredura de portas no segundo servidor: 150 portas diferentes, uma a
-     * cada 20 ms. O ritmo (50 por segundo) fica abaixo do limite do SYN Flood
-     * de propósito: o que denuncia a varredura é a variedade de portas.
-     */
+    // 150 portas diferentes, uma a cada 20 ms (devagar, para não virar SYN Flood)
     private void injetarPortScan() {
         String alvo = servidores.get(servidores.size() > 1 ? 1 : 0).getIp();
         for (int porta = 1000; porta < 1150; porta++) {
@@ -98,7 +74,7 @@ public class SimuladorTrafego implements FonteDeTrafego {
         }
     }
 
-    /** Uma máquina tentando um shell remoto e outra usando Telnet no último servidor. */
+    // acesso às portas 4444 (shell remoto) e 23 (Telnet)
     private void injetarPortasSuspeitas() {
         String alvo = servidores.get(servidores.size() - 1).getIp();
         for (int i = 0; i < 5; i++) {
@@ -109,7 +85,7 @@ public class SimuladorTrafego implements FonteDeTrafego {
         pacotes.add(new PacoteTcp(relogioMs, "198.51.100.23", alvo, 60, portaAleatoria(), 23, true));
     }
 
-    /** Um "ping da morte" (ICMP gigante) e um pacote TCP muito acima do tamanho normal. */
+    // um ping gigante e um pacote TCP muito grande
     private void injetarPacotesGigantes() {
         relogioMs += 10;
         pacotes.add(new PacoteIcmp(relogioMs, "203.0.113.150", servidores.get(0).getIp(), 65000,
@@ -119,26 +95,22 @@ public class SimuladorTrafego implements FonteDeTrafego {
         pacotes.add(new PacoteTcp(relogioMs, "192.168.1.51", alvo, 9000, portaAleatoria(), 443, false));
     }
 
-    // -------------------------- tráfego normal --------------------------
-
     private void gerarPacoteNormal() {
         relogioMs += 1 + aleatorio.nextInt(8);
         String cliente = "192.168.1." + (10 + aleatorio.nextInt(50));
         String servidor = servidores.get(aleatorio.nextInt(servidores.size())).getIp();
 
         if (aleatorio.nextInt(100) < 90) {
-            // Cliente acessando o servidor (web): de vez em quando abre uma conexão nova (SYN).
+            // acesso web; às vezes abre conexão nova (SYN)
             boolean novaConexao = aleatorio.nextInt(100) < 8;
             int tamanho = novaConexao ? 60 : 40 + aleatorio.nextInt(1421);
             int porta = aleatorio.nextBoolean() ? 443 : 80;
             pacotes.add(new PacoteTcp(relogioMs, cliente, servidor, tamanho, portaAleatoria(), porta, novaConexao));
         } else {
-            // Ping ocasional de um cliente para o servidor.
             pacotes.add(new PacoteIcmp(relogioMs, cliente, servidor, 64, PacoteIcmp.TIPO_ECHO_REQUEST));
         }
     }
 
-    /** Porta alta, do tipo que o sistema operacional sorteia para quem inicia a comunicação. */
     private int portaAleatoria() {
         return 49152 + aleatorio.nextInt(16000);
     }

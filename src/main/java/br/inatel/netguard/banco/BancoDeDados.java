@@ -17,31 +17,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Toda a comunicação com o banco de dados SQLite, feita com JDBC.
- * Nenhuma outra classe do projeto escreve SQL.
- *
- * O banco tem quatro tabelas, ligadas por chaves estrangeiras:
- *   empresas  1 --- N  servidores
- *   empresas  1 --- N  analises  1 --- N  anomalias
- *
- * Implementa a interface Notificador: para o motor de detecção, o banco é só
- * mais um destino de alertas, igual à tela. Cada anomalia notificada vira uma
- * linha no banco.
- *
- * Recursos do banco (conexão e comandos) precisam ser fechados depois de
- * usados. Isso é feito no bloco finally, que sempre executa, com erro ou sem
- * erro (Aula 13). Fechar um comando (Statement) fecha junto o resultado
- * (ResultSet) que ele gerou.
- */
+// Todo o acesso ao banco SQLite fica aqui (JDBC).
+// Tabelas: empresas, servidores e alertas (os dois últimos apontam para a empresa).
+// Implementa Notificador: para o motor, o banco é só mais um destino dos alertas.
 public class BancoDeDados implements Notificador {
 
     private static final String[] CRIAR_TABELAS = {
@@ -57,16 +40,9 @@ public class BancoDeDados implements Notificador {
             + " nome        TEXT NOT NULL,"
             + " ip          TEXT NOT NULL,"
             + " UNIQUE (empresa_id, ip))",
-        "CREATE TABLE IF NOT EXISTS analises ("
+        "CREATE TABLE IF NOT EXISTS alertas ("
             + " id          INTEGER PRIMARY KEY AUTOINCREMENT,"
             + " empresa_id  INTEGER NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,"
-            + " data_hora   TEXT NOT NULL,"
-            + " pacotes     INTEGER NOT NULL DEFAULT 0,"
-            + " anomalias   INTEGER NOT NULL DEFAULT 0)",
-        "CREATE TABLE IF NOT EXISTS anomalias ("
-            + " id          INTEGER PRIMARY KEY AUTOINCREMENT,"
-            + " analise_id  INTEGER NOT NULL REFERENCES analises(id) ON DELETE CASCADE,"
-            + " servidor_id INTEGER REFERENCES servidores(id) ON DELETE SET NULL,"
             + " numero      INTEGER NOT NULL,"
             + " instante_ms INTEGER NOT NULL,"
             + " tipo        TEXT NOT NULL,"
@@ -76,36 +52,24 @@ public class BancoDeDados implements Notificador {
             + " descricao   TEXT NOT NULL)"
     };
 
-    private static final DateTimeFormatter FORMATO_DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-
     private final Connection conexao;
+    private int empresaAnalisada = -1; // empresa da análise em andamento
 
-    /** Análise em andamento: o id dela no banco e os servidores vigiados (IP -> id). */
-    private int analiseAtual = -1;
-    private final Map<String, Integer> servidoresVigiados = new HashMap<>();
-
-    /**
-     * Abre (ou cria) o arquivo do banco e garante que as tabelas existem.
-     *
-     * @throws BancoDeDadosException se o driver não estiver disponível ou o banco não abrir
-     */
     public BancoDeDados(Path arquivo) throws BancoDeDadosException {
         try {
-            // Confere se a biblioteca do SQLite (o .jar da pasta lib) está no classpath.
-            Class.forName("org.sqlite.JDBC");
+            Class.forName("org.sqlite.JDBC"); // confere se o .jar do SQLite está no classpath
             if (arquivo.getParent() != null) {
                 Files.createDirectories(arquivo.getParent());
             }
             conexao = DriverManager.getConnection("jdbc:sqlite:" + arquivo);
             Statement comando = conexao.createStatement();
             try {
-                // O SQLite só respeita as chaves estrangeiras (e o CASCADE) com esta opção ligada.
-                comando.execute("PRAGMA foreign_keys = ON");
+                comando.execute("PRAGMA foreign_keys = ON"); // sem isso o SQLite ignora o CASCADE
                 for (String sql : CRIAR_TABELAS) {
                     comando.execute(sql);
                 }
             } finally {
-                comando.close(); // o finally sempre executa: o comando é fechado mesmo se der erro
+                comando.close();
             }
         } catch (ClassNotFoundException e) {
             throw new BancoDeDadosException("Driver do SQLite não encontrado: rode o programa com "
@@ -115,14 +79,12 @@ public class BancoDeDados implements Notificador {
         }
     }
 
-    // ============================ CADASTRO ============================
+    // ---------- cadastro ----------
 
-    /** Grava uma empresa nova e devolve o id que o banco deu a ela. */
     public int cadastrarEmpresa(Empresa empresa) throws BancoDeDadosException {
         String sql = "INSERT INTO empresas (nome, cnpj, responsavel, email) VALUES (?, ?, ?, ?)";
-        // PreparedStatement com "?": os valores vão separados do SQL, então um texto
-        // com aspas não quebra o comando e não há risco de SQL Injection.
         try {
+            // PreparedStatement: os valores vão nos "?", o que evita SQL Injection
             PreparedStatement comando = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             try {
                 comando.setString(1, empresa.getNome());
@@ -142,7 +104,6 @@ public class BancoDeDados implements Notificador {
         }
     }
 
-    /** Grava um servidor novo e devolve o id que o banco deu a ele. */
     public int cadastrarServidor(Servidor servidor) throws BancoDeDadosException {
         String sql = "INSERT INTO servidores (empresa_id, nome, ip) VALUES (?, ?, ?)";
         try {
@@ -167,10 +128,7 @@ public class BancoDeDados implements Notificador {
         }
     }
 
-    /**
-     * Lê todas as empresas e os servidores de cada uma, e monta os objetos.
-     * É aqui que as linhas das tabelas viram objetos Empresa e Servidor.
-     */
+    // lê as tabelas e monta os objetos Empresa, cada um com seus servidores
     public List<Empresa> listarEmpresas() throws BancoDeDadosException {
         Map<Integer, Empresa> porId = new LinkedHashMap<>();
         try {
@@ -199,17 +157,11 @@ public class BancoDeDados implements Notificador {
         return new ArrayList<>(porId.values());
     }
 
-    /**
-     * Exclui a empresa. Por causa do ON DELETE CASCADE, o banco apaga junto os
-     * servidores e as análises dela.
-     *
-     * @return true se a empresa existia
-     */
+    // o CASCADE apaga junto os servidores e os alertas da empresa
     public boolean excluirEmpresa(int id) throws BancoDeDadosException {
         return excluir("DELETE FROM empresas WHERE id = ?", id);
     }
 
-    /** @return true se o servidor existia */
     public boolean excluirServidor(int id) throws BancoDeDadosException {
         return excluir("DELETE FROM servidores WHERE id = ?", id);
     }
@@ -219,7 +171,7 @@ public class BancoDeDados implements Notificador {
             PreparedStatement comando = conexao.prepareStatement(sql);
             try {
                 comando.setInt(1, id);
-                return comando.executeUpdate() > 0;
+                return comando.executeUpdate() > 0; // false se o id não existia
             } finally {
                 comando.close();
             }
@@ -228,247 +180,87 @@ public class BancoDeDados implements Notificador {
         }
     }
 
-    // ============================ HISTÓRICO ============================
+    // ---------- alertas ----------
 
-    /** Registra o início de uma análise da empresa e guarda quais servidores ela tem. */
-    public void iniciarAnalise(Empresa empresa) throws BancoDeDadosException {
-        String sql = "INSERT INTO analises (empresa_id, data_hora) VALUES (?, ?)";
-        try {
-            PreparedStatement comando = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            try {
-                comando.setInt(1, empresa.getId());
-                comando.setString(2, LocalDateTime.now().format(FORMATO_DATA));
-                comando.executeUpdate();
-                analiseAtual = idGerado(comando);
-            } finally {
-                comando.close();
-            }
-        } catch (SQLException e) {
-            throw new BancoDeDadosException("não foi possível registrar a análise", e);
-        }
-        servidoresVigiados.clear();
-        for (Servidor servidor : empresa.getServidores()) {
-            servidoresVigiados.put(servidor.getIp(), servidor.getId());
-        }
+    // avisa de qual empresa são os próximos alertas
+    public void iniciarAnalise(Empresa empresa) {
+        empresaAnalisada = empresa.getId();
     }
 
-    /**
-     * Grava a anomalia no banco. É o método da interface Notificador: o motor
-     * chama este método do mesmo jeito que chama o da tela.
-     */
+    // método da interface Notificador: o motor chama igual ao da tela
     @Override
     public void notificar(Anomalia anomalia) throws BancoDeDadosException {
-        if (analiseAtual < 0) {
-            throw new BancoDeDadosException("anomalia recebida sem análise em andamento: chame iniciarAnalise antes",
-                    null);
+        if (empresaAnalisada < 0) {
+            throw new BancoDeDadosException("alerta recebido antes de iniciarAnalise", null);
         }
-        String sql = "INSERT INTO anomalias (analise_id, servidor_id, numero, instante_ms, tipo, severidade,"
-                + " ip_suspeito, ip_alvo, descricao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO alertas (empresa_id, numero, instante_ms, tipo, severidade,"
+                + " ip_suspeito, ip_alvo, descricao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try {
             PreparedStatement comando = conexao.prepareStatement(sql);
             try {
-                comando.setInt(1, analiseAtual);
-                // Liga a anomalia ao servidor atacado, procurando o IP alvo entre os servidores vigiados.
-                comando.setObject(2, servidoresVigiados.get(anomalia.getIpAlvo()));
-                comando.setInt(3, anomalia.getNumero());
-                comando.setLong(4, anomalia.getInstanteMs());
-                comando.setString(5, anomalia.getTipo());
-                comando.setString(6, anomalia.getSeveridade().name());
-                comando.setString(7, anomalia.getIpSuspeito());
-                comando.setString(8, anomalia.getIpAlvo());
-                comando.setString(9, anomalia.getDescricao());
+                comando.setInt(1, empresaAnalisada);
+                comando.setInt(2, anomalia.getNumero());
+                comando.setLong(3, anomalia.getInstanteMs());
+                comando.setString(4, anomalia.getTipo());
+                comando.setString(5, anomalia.getSeveridade().name());
+                comando.setString(6, anomalia.getIpSuspeito());
+                comando.setString(7, anomalia.getIpAlvo());
+                comando.setString(8, anomalia.getDescricao());
                 comando.executeUpdate();
             } finally {
                 comando.close();
             }
         } catch (SQLException e) {
-            throw new BancoDeDadosException("não foi possível gravar a anomalia #" + anomalia.getNumero(), e);
+            throw new BancoDeDadosException("não foi possível gravar o alerta #" + anomalia.getNumero(), e);
         }
     }
 
-    /** Completa a linha da análise com os totais, depois que ela termina. */
-    public void finalizarAnalise(int pacotes, int anomalias) throws BancoDeDadosException {
-        String sql = "UPDATE analises SET pacotes = ?, anomalias = ? WHERE id = ?";
+    // lê os alertas salvos da empresa e transforma de volta em objetos Anomalia
+    public List<Anomalia> listarAlertas(int empresaId) throws BancoDeDadosException {
+        List<Anomalia> alertas = new ArrayList<>();
         try {
-            PreparedStatement comando = conexao.prepareStatement(sql);
-            try {
-                comando.setInt(1, pacotes);
-                comando.setInt(2, anomalias);
-                comando.setInt(3, analiseAtual);
-                comando.executeUpdate();
-            } finally {
-                comando.close();
-            }
-        } catch (SQLException e) {
-            throw new BancoDeDadosException("não foi possível finalizar a análise", e);
-        }
-    }
-
-    /** @return as últimas análises, da mais recente para a mais antiga, já formatadas */
-    public List<String> listarAnalises(int limite) throws BancoDeDadosException {
-        String sql = "SELECT a.id, a.data_hora, e.nome, a.pacotes, a.anomalias"
-                + " FROM analises a JOIN empresas e ON a.empresa_id = e.id"
-                + " ORDER BY a.id DESC LIMIT ?";
-        List<String> resultado = new ArrayList<>();
-        try {
-            PreparedStatement comando = conexao.prepareStatement(sql);
-            try {
-                comando.setInt(1, limite);
-                ResultSet linhas = comando.executeQuery();
-                while (linhas.next()) {
-                    resultado.add(String.format("Análise %d | %s | %s | %d pacotes | %d anomalias",
-                            linhas.getInt(1), linhas.getString(2), linhas.getString(3),
-                            linhas.getInt(4), linhas.getInt(5)));
-                }
-            } finally {
-                comando.close();
-            }
-        } catch (SQLException e) {
-            throw new BancoDeDadosException("não foi possível consultar as análises", e);
-        }
-        return resultado;
-    }
-
-    /** Lê as anomalias da análise mais recente e as transforma de volta em objetos Anomalia. */
-    public List<Anomalia> listarAnomaliasDaUltimaAnalise() throws BancoDeDadosException {
-        return listarAnomalias("SELECT * FROM anomalias"
-                + " WHERE analise_id = (SELECT MAX(id) FROM analises) ORDER BY numero", null);
-    }
-
-    // ===================== RELATÓRIO DE ANOMALIAS DA REDE =====================
-    // Todas as consultas abaixo filtram por empresa: só entram as anomalias das
-    // análises daquela empresa (JOIN com a tabela analises, WHERE empresa_id = ?).
-
-    /** @return o maior número de anomalia já gravado (0 se ainda não há nenhuma) */
-    public int maiorNumeroDeAnomalia() throws BancoDeDadosException {
-        try {
-            Statement comando = conexao.createStatement();
-            try {
-                ResultSet linhas = comando.executeQuery("SELECT COALESCE(MAX(numero), 0) FROM anomalias");
-                linhas.next();
-                return linhas.getInt(1);
-            } finally {
-                comando.close();
-            }
-        } catch (SQLException e) {
-            throw new BancoDeDadosException("não foi possível consultar a numeração das anomalias", e);
-        }
-    }
-
-    /** @return quantas análises a empresa já teve */
-    public int contarAnalises(int empresaId) throws BancoDeDadosException {
-        String sql = "SELECT COUNT(*) FROM analises WHERE empresa_id = ?";
-        try {
-            PreparedStatement comando = conexao.prepareStatement(sql);
-            try {
-                comando.setInt(1, empresaId);
-                ResultSet linhas = comando.executeQuery();
-                linhas.next();
-                return linhas.getInt(1);
-            } finally {
-                comando.close();
-            }
-        } catch (SQLException e) {
-            throw new BancoDeDadosException("não foi possível contar as análises", e);
-        }
-    }
-
-    /** @return anomalias da empresa agrupadas por tipo de ataque (com a severidade), da mais frequente à menos */
-    public Map<String, Integer> contarPorTipo(int empresaId) throws BancoDeDadosException {
-        return contar("SELECT an.tipo || ' [' || an.severidade || ']', COUNT(*) AS total"
-                + " FROM anomalias an JOIN analises a ON an.analise_id = a.id"
-                + " WHERE a.empresa_id = ? GROUP BY an.tipo, an.severidade ORDER BY total DESC", empresaId);
-    }
-
-    /** @return anomalias da empresa agrupadas pelo IP de onde o ataque veio */
-    public Map<String, Integer> contarPorIpAtacante(int empresaId) throws BancoDeDadosException {
-        return contar("SELECT an.ip_suspeito, COUNT(*) AS total"
-                + " FROM anomalias an JOIN analises a ON an.analise_id = a.id"
-                + " WHERE a.empresa_id = ? GROUP BY an.ip_suspeito ORDER BY total DESC", empresaId);
-    }
-
-    /** @return anomalias da empresa agrupadas pelo servidor atacado (o mais atacado primeiro) */
-    public Map<String, Integer> contarPorServidor(int empresaId) throws BancoDeDadosException {
-        // JOIN junta três tabelas: a anomalia, a análise (para filtrar a empresa) e o servidor (para o nome).
-        return contar("SELECT s.nome || ' (' || s.ip || ')', COUNT(*) AS total"
-                + " FROM anomalias an JOIN analises a ON an.analise_id = a.id"
-                + " JOIN servidores s ON an.servidor_id = s.id"
-                + " WHERE a.empresa_id = ? GROUP BY s.id ORDER BY total DESC", empresaId);
-    }
-
-    /** @return todas as anomalias já registradas nas análises da empresa, como objetos Anomalia */
-    public List<Anomalia> listarAnomaliasDaEmpresa(int empresaId) throws BancoDeDadosException {
-        return listarAnomalias("SELECT an.* FROM anomalias an JOIN analises a ON an.analise_id = a.id"
-                + " WHERE a.empresa_id = ? ORDER BY an.id", empresaId);
-    }
-
-    // ============================ AUXILIARES ============================
-
-    /**
-     * Executa uma consulta de agrupamento (rótulo, total) com um parâmetro "?" e
-     * devolve o resultado como mapa. Usado pelos três métodos contarPor...
-     */
-    private Map<String, Integer> contar(String sql, int empresaId) throws BancoDeDadosException {
-        Map<String, Integer> contagem = new LinkedHashMap<>(); // LinkedHashMap mantém a ordem do ORDER BY
-        try {
-            PreparedStatement comando = conexao.prepareStatement(sql);
+            PreparedStatement comando = conexao.prepareStatement(
+                    "SELECT * FROM alertas WHERE empresa_id = ? ORDER BY id");
             try {
                 comando.setInt(1, empresaId);
                 ResultSet linhas = comando.executeQuery();
                 while (linhas.next()) {
-                    contagem.put(linhas.getString(1), linhas.getInt(2));
-                }
-            } finally {
-                comando.close();
-            }
-        } catch (SQLException e) {
-            throw new BancoDeDadosException("não foi possível montar o relatório de anomalias", e);
-        }
-        return contagem;
-    }
-
-    /**
-     * Executa uma consulta na tabela anomalias e transforma cada linha de volta em um objeto Anomalia.
-     *
-     * @param empresaId valor do "?" da consulta, ou null se a consulta não tiver "?"
-     */
-    private List<Anomalia> listarAnomalias(String sql, Integer empresaId) throws BancoDeDadosException {
-        List<Anomalia> anomalias = new ArrayList<>();
-        try {
-            PreparedStatement comando = conexao.prepareStatement(sql);
-            try {
-                if (empresaId != null) {
-                    comando.setInt(1, empresaId);
-                }
-                ResultSet linhas = comando.executeQuery();
-                while (linhas.next()) {
-                    anomalias.add(new Anomalia(linhas.getInt("numero"), linhas.getString("tipo"),
+                    alertas.add(new Anomalia(linhas.getInt("numero"), linhas.getString("tipo"),
                             Severidade.valueOf(linhas.getString("severidade")), linhas.getString("ip_suspeito"),
                             linhas.getString("ip_alvo"), linhas.getLong("instante_ms"), linhas.getString("descricao")));
                 }
             } finally {
+                comando.close(); // fecha junto o ResultSet
+            }
+        } catch (SQLException e) {
+            throw new BancoDeDadosException("não foi possível consultar os alertas", e);
+        }
+        return alertas;
+    }
+
+    // maior número de alerta já salvo (0 se não tem nenhum)
+    public int maiorNumeroDeAlerta() throws BancoDeDadosException {
+        try {
+            Statement comando = conexao.createStatement();
+            try {
+                ResultSet linhas = comando.executeQuery("SELECT COALESCE(MAX(numero), 0) FROM alertas");
+                linhas.next();
+                return linhas.getInt(1);
+            } finally {
                 comando.close();
             }
         } catch (SQLException e) {
-            throw new BancoDeDadosException("não foi possível consultar as anomalias", e);
+            throw new BancoDeDadosException("não foi possível consultar a numeração dos alertas", e);
         }
-        return anomalias;
     }
 
-    /**
-     * Lê o id que o banco acabou de gerar no último INSERT. O ResultSet é
-     * fechado junto com o comando, no finally de quem chamou este método.
-     */
+    // id que o banco acabou de gerar no INSERT
     private int idGerado(PreparedStatement comando) throws SQLException {
         ResultSet chaves = comando.getGeneratedKeys();
         chaves.next();
         return chaves.getInt(1);
     }
 
-    /**
-     * Fecha a conexão com o banco. É chamado no finally do main, então roda
-     * sempre que o programa termina, com erro ou sem erro.
-     */
     public void fechar() {
         try {
             conexao.close();

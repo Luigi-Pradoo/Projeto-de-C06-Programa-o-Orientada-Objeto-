@@ -8,13 +8,10 @@ import br.inatel.netguard.modelo.Severidade;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Detecta tráfego para portas conhecidas por uso inseguro ou malicioso.
- * Um único pacote já basta para alertar: não precisa de janela de tempo.
- */
+// Acesso a portas conhecidas por serem usadas em ataques. Um pacote já basta.
 public class DetectorPortaSuspeita extends Detector {
 
-    /** Tabela porta -> motivo da suspeita (um HashMap, chave -> valor, como na Aula 12). */
+    // porta -> motivo
     private final Map<Integer, String> portasSuspeitas = new HashMap<>();
 
     public DetectorPortaSuspeita() {
