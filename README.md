@@ -221,6 +221,12 @@ No Linux e no macOS, troque `\` por `/` e o `;` do classpath por `:`.
 > `192.168.0.15` contra o roteador `192.168.0.1`. O resultado são alertas de Port Scan, SYN
 > Flood, Porta suspeita (Telnet) e Tamanho anormal; a navegação normal não gera alerta.
 
+**Casos de teste:** a pasta [`exemplos/testes/`](exemplos/testes/) tem 10 capturas, uma por
+situação (tráfego normal, cada ataque isolado, exatamente no limite, um acima do limite e arquivos
+inválidos), com o resultado esperado de cada uma em
+[`exemplos/testes/LEIA-ME.md`](exemplos/testes/LEIA-ME.md). Todas usam os servidores da Empresa
+Exemplo, então basta escolher a empresa 1 e a fonte 2.
+
 <sub>[↑ Voltar ao índice](#contents)</sub>
 
 ## Orientação a Objetos no projeto
@@ -353,7 +359,7 @@ do nome, herança com linha cheia e triângulo vazado, implementação com linha
 │   ├── banco/               BancoDeDados (SQLite via JDBC)
 │   └── excecao/             exceções do sistema
 ├── lib/                     driver JDBC do SQLite
-├── exemplos/                captura-exemplo.pcap (gerada por script, para teste)
+├── exemplos/                captura-exemplo.pcap e testes/ (10 casos de teste, gerados por script)
 ├── docs/uml/                diagramas UML (completo e por pacote)
 ├── executar.bat             compila e executa no Windows
 ├── executar.sh              compila e executa no Linux/macOS
